@@ -23,7 +23,7 @@ law_df = law_df.rename(
         'Effective Date Year': 'Year',
         'State Postal Abbreviation':'ST'
     })
-law_df['Year'] = law_df['Year'].astype(str)
+#law_df['Year'] = law_df['Year'].astype(str)
 law_type_choices = law_df['Law Class'].unique()
 
 #Fix Mississippi and DC labels
@@ -57,6 +57,8 @@ app = dash.Dash(__name__,assets_folder=os.path.join(os.curdir,"assets"))
 server = app.server
 app.layout = html.Div([
     dcc.Tabs([
+
+#Tab #1 --> Welcome Page
         dcc.Tab(label='Welcome',value='tab-1',style=tab_style, selected_style=tab_selected_style,
                children=[
                    html.Div([
@@ -94,7 +96,9 @@ app.layout = html.Div([
 
 
                ]),
-        dcc.Tab(label='2nd Tab',value='tab-2',style=tab_style, selected_style=tab_selected_style,
+#Tab #2 --> State Level Legislation
+
+        dcc.Tab(label='State-Level Legislation',value='tab-2',style=tab_style, selected_style=tab_selected_style,
             children=[
                 dbc.Row([
                     dbc.Col([
@@ -110,16 +114,19 @@ app.layout = html.Div([
                                 labelStyle={'display': 'block','text-align': 'left'}
 
                         ),
+                    ],width=12),
+                    dbc.Col([
                         dcc.Graph(id='state_law_freq_map')
                     ],width=6),
                     dbc.Col([
-                        dcc.Dropdown(
-                            id='dropdown0',
-                            style={'color':'black'},
-                            options=[{'label': i, 'value': i} for i in law_type_choices],
-                            value=law_type_choices[0]
-                        ),
-                        dcc.Graph(id='law_types_timeline')
+                        # dcc.Dropdown(
+                        #     id='dropdown0',
+                        #     style={'color':'black'},
+                        #     options=[{'label': i, 'value': i} for i in law_type_choices],
+                        #     value=law_type_choices[0]
+                        # ),
+                        #dcc.Graph(id='law_types_timeline'),
+                        dcc.Graph(id='law_types_treemap')
                     ],width=6)
                 ])
             ]
@@ -127,92 +134,6 @@ app.layout = html.Div([
 
     ])
 ])
-
-
-
-@app.callback(
-    Output('state_law_freq_map','figure'),
-    Input('radio1','value'))
-
-def update_law_map(radio_select):
-
-   
-    if "All Laws" in radio_select:
-        map_df = pd.DataFrame(law_df[['State','ST']].value_counts()).reset_index()
-        map_df = map_df.rename(columns={0: 'Count'})
-
-        fig = px.choropleth(map_df,
-                    locations='ST',
-                    color='Count',
-                    template='plotly_dark',
-
-                    hover_name='State',
-                    locationmode='USA-states',
-                    labels={'Count':'# Laws Passed'},
-                    scope='usa')
-        return fig
-
-    elif "Permissive" in radio_select:
-        new_df = law_df[law_df['Effect']=="Permissive"]
-
-        map_df = pd.DataFrame(new_df[['State','ST']].value_counts()).reset_index()
-        map_df = map_df.rename(columns={0: 'Count'})
-
-        fig = px.choropleth(map_df,
-                    locations='ST',
-                    color='Count',
-                    template='plotly_dark',
-
-                    hover_name='State',
-                    locationmode='USA-states',
-                    labels={'Count':'# Laws Passed'},
-                    scope='usa')
-        return fig
-    else:
-
-        new_df = law_df[law_df['Effect']=="Restrictive"]
-
-        map_df = pd.DataFrame(new_df[['State','ST']].value_counts()).reset_index()
-        map_df = map_df.rename(columns={0: 'Count'})
-
-        fig = px.choropleth(map_df,
-                    locations='ST',
-                    color='Count',
-                    template='plotly_dark',
-
-                    hover_name='State',
-                    locationmode='USA-states',
-                    labels={'Count':'# Laws Passed'},
-                    scope='usa')
-        return fig
-
-@app.callback(
-    Output('law_types_timeline', 'figure'), 
-    Input('dropdown0', 'value') 
-)
-def timeline_graph(dd0):
-    filtered = law_df[law_df['Law Class']==dd0]
-    #filtered = law_df[law_df['Law Class']=="background checks"]
-
-    test = filtered[['Year','Law Class']]
-    test = filtered.groupby(['Year']).size().reset_index()
-    test = test.rename(columns={0: 'Count'})
-
-
-
-    fig = px.line(
-        test, 
-        x="Year", y="Count",
-        #markers=True,
-        #orientation='h',
-        template='plotly_dark',
-        #labels={'ones':'# Astronauts','country':'Country'},
-        #title=f'# Astronauts by Country in {slider0}',
-        #text_auto=True
-    )
-
-    
-    return fig
 
 #Configure Reactivity for Tab Colors
 @app.callback(Output('tabs-content-inline', 'children'),
@@ -238,6 +159,183 @@ def render_content(tab):
 #         ])
 
 
+#------------------- TAB #2 -------------------#
+
+#Configure reactivity for changing choropleth state map
+@app.callback(
+    Output('state_law_freq_map','figure'),
+    Input('radio1','value')
+) 
+
+def update_law_map(radio_select):
+   
+    if "All Laws" in radio_select:
+        map_df = pd.DataFrame(law_df[['State','ST']].value_counts()).reset_index()
+        map_df = map_df.rename(columns={0: 'Count'})
+
+        fig = px.choropleth(map_df,
+                    locations='ST',
+                    color='Count',
+                    template='plotly_dark',
+
+                    hover_name='State',
+                    locationmode='USA-states',
+                    labels={'Count':'# Laws Passed'},
+                    scope='usa')
+
+        
+            
+        return fig
+
+    elif "Permissive" in radio_select:
+        new_df = law_df[law_df['Effect']==radio_select]
+
+        map_df = pd.DataFrame(new_df[['State','ST']].value_counts()).reset_index()
+        map_df = map_df.rename(columns={0: 'Count'})
+
+        fig = px.choropleth(map_df,
+                    locations='ST',
+                    color='Count',
+                    template='plotly_dark',
+
+                    hover_name='State',
+                    locationmode='USA-states',
+                    labels={'Count':'# Laws Passed'},
+                    scope='usa')
+        return fig
+    else:
+
+        new_df = law_df[law_df['Effect']==radio_select]
+
+        map_df = pd.DataFrame(new_df[['State','ST']].value_counts()).reset_index()
+        map_df = map_df.rename(columns={0: 'Count'})
+
+        fig = px.choropleth(map_df,
+                    locations='ST',
+                    color='Count',
+                    template='plotly_dark',
+
+                    hover_name='State',
+                    locationmode='USA-states',
+                    labels={'Count':'# Laws Passed'},
+                    scope='usa')
+        return fig
+
+
+@app.callback(
+    Output('law_types_treemap', 'figure'), 
+    Input('radio1','value'),
+    Input('state_law_freq_map', 'clickData')
+) 
+
+def update_tree_map_on_click(radio_select,click_state):
+    if not click_state:
+        #raise dash.exceptions.PreventUpdate
+        location = law_df['State'].sort_values()[0]
+        filtered = law_df[law_df['State']==location]
+    
+
+        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()
+        class_df = class_df.rename(
+                    columns={
+                        'index': 'Law Class',
+                        'Law Class':'# Laws'
+                    }
+                )
+
+        tree_fig = px.treemap(
+                            class_df, 
+                            path = ['Law Class'],
+                            values = '# Laws',
+                            template='plotly_dark',
+                            title=f'Laws Passed in {location}',
+                            color = 'Law Class'
+                        )
+        tree_fig.update_traces(
+                            hovertemplate='# Laws=%{value}'
+                        )
+        return tree_fig
+
+    if "All Laws" in radio_select:
+        location = click_state['points'][0]['hovertext']
+        filtered = law_df[law_df['State']==location]
+    
+
+        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()
+        class_df = class_df.rename(
+                    columns={
+                        'index': 'Law Class',
+                        'Law Class':'# Laws'
+                    }
+                )
+
+        tree_fig = px.treemap(
+                            class_df, 
+                            path = ['Law Class'],
+                            values = '# Laws',
+                            template='plotly_dark',
+                            title=f'Laws Passed in {location}',
+                            color = 'Law Class'
+                        )
+        tree_fig.update_traces(
+                            hovertemplate='# Laws=%{value}'
+                        )
+        return tree_fig
+
+    elif "Permissive" in radio_select:
+        location = click_state['points'][0]['hovertext']
+        filtered = law_df[law_df['State']==location]
+        filtered = filtered[filtered['Effect']==radio_select]
+
+    
+
+        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()
+        class_df = class_df.rename(
+                    columns={
+                        'index': 'Law Class',
+                        'Law Class':'# Laws'
+                    }
+                )
+
+        tree_fig = px.treemap(
+                            class_df, 
+                            path = ['Law Class'],
+                            values = '# Laws',
+                            template='plotly_dark',
+                            title=f'Laws Passed in {location}',
+                            color = 'Law Class'
+                        )
+        tree_fig.update_traces(
+                            hovertemplate='# Laws=%{value}'
+                        )
+        return tree_fig
+    else:
+        location = click_state['points'][0]['hovertext']
+        filtered = law_df[law_df['State']==location]
+        filtered = filtered[filtered['Effect']==radio_select]
+
+    
+
+        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()
+        class_df = class_df.rename(
+                    columns={
+                        'index': 'Law Class',
+                        'Law Class':'# Laws'
+                    }
+                )
+
+        tree_fig = px.treemap(
+                            class_df, 
+                            path = ['Law Class'],
+                            values = '# Laws',
+                            template='plotly_dark',
+                            title=f'Laws Passed in {location}',
+                            color = 'Law Class'
+                        )
+        tree_fig.update_traces(
+                            hovertemplate='# Laws=%{value}'
+                        )
+        return tree_fig
 
 
 # @app.callback(
