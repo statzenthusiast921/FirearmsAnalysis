@@ -23,7 +23,9 @@ law_df = law_df.rename(
         'Effective Date Year': 'Year',
         'State Postal Abbreviation':'ST'
     })
-#law_df['Year'] = law_df['Year'].astype(str)
+law_df = law_df[law_df['Effective Date'].notnull()]
+
+
 law_type_choices = law_df['Law Class'].unique()
 
 #Fix Mississippi and DC labels
@@ -119,14 +121,10 @@ app.layout = html.Div([
                         dcc.Graph(id='state_law_freq_map')
                     ],width=6),
                     dbc.Col([
-                        # dcc.Dropdown(
-                        #     id='dropdown0',
-                        #     style={'color':'black'},
-                        #     options=[{'label': i, 'value': i} for i in law_type_choices],
-                        #     value=law_type_choices[0]
-                        # ),
-                        #dcc.Graph(id='law_types_timeline'),
-                        dcc.Graph(id='law_types_treemap')
+                        dcc.Graph(id='law_types_treemap'),
+                        html.Br(),
+                        html.Br(),
+                        dcc.Graph(id='state_timeline')
                     ],width=6)
                 ])
             ]
@@ -231,29 +229,34 @@ def update_law_map(radio_select):
 def update_tree_map_on_click(radio_select,click_state):
     if not click_state:
         #raise dash.exceptions.PreventUpdate
-        location = law_df['State'].sort_values()[0]
+        location = law_df['State'].sort_values().iloc[0]
         filtered = law_df[law_df['State']==location]
     
 
-        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()
+        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()[0:5]
         class_df = class_df.rename(
                     columns={
                         'index': 'Law Class',
                         'Law Class':'# Laws'
                     }
                 )
+        
 
         tree_fig = px.treemap(
                             class_df, 
                             path = ['Law Class'],
                             values = '# Laws',
                             template='plotly_dark',
-                            title=f'Laws Passed in {location}',
+                            title=f'Top 5 Classes of Laws Passed in {location}',
                             color = 'Law Class'
-                        )
+        )
         tree_fig.update_traces(
                             hovertemplate='# Laws=%{value}'
-                        )
+        )
+        tree_fig.update_layout(
+            margin=dict(l=0, r=0, t=30, b=0),
+            height=200
+        )
         return tree_fig
 
     if "All Laws" in radio_select:
@@ -261,7 +264,7 @@ def update_tree_map_on_click(radio_select,click_state):
         filtered = law_df[law_df['State']==location]
     
 
-        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()
+        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()[0:5]
         class_df = class_df.rename(
                     columns={
                         'index': 'Law Class',
@@ -274,12 +277,16 @@ def update_tree_map_on_click(radio_select,click_state):
                             path = ['Law Class'],
                             values = '# Laws',
                             template='plotly_dark',
-                            title=f'Laws Passed in {location}',
+                            title=f'Top 5 Classes of Laws Passed in {location}',
                             color = 'Law Class'
-                        )
+        )
         tree_fig.update_traces(
                             hovertemplate='# Laws=%{value}'
-                        )
+        )
+        tree_fig.update_layout(
+            margin=dict(l=0, r=0, t=30, b=0),
+            height=200
+        )
         return tree_fig
 
     elif "Permissive" in radio_select:
@@ -289,7 +296,7 @@ def update_tree_map_on_click(radio_select,click_state):
 
     
 
-        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()
+        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()[0:5]
         class_df = class_df.rename(
                     columns={
                         'index': 'Law Class',
@@ -302,12 +309,17 @@ def update_tree_map_on_click(radio_select,click_state):
                             path = ['Law Class'],
                             values = '# Laws',
                             template='plotly_dark',
-                            title=f'Laws Passed in {location}',
+                            title=f'Top 5 Classes of Permissive Laws Passed in {location}',
                             color = 'Law Class'
-                        )
+        )
+
         tree_fig.update_traces(
                             hovertemplate='# Laws=%{value}'
-                        )
+        )
+        tree_fig.update_layout(
+            margin=dict(l=0, r=0, t=30, b=0),
+            height=200
+        )
         return tree_fig
     else:
         location = click_state['points'][0]['hovertext']
@@ -316,7 +328,7 @@ def update_tree_map_on_click(radio_select,click_state):
 
     
 
-        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()
+        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()[0:5]
         class_df = class_df.rename(
                     columns={
                         'index': 'Law Class',
@@ -329,15 +341,84 @@ def update_tree_map_on_click(radio_select,click_state):
                             path = ['Law Class'],
                             values = '# Laws',
                             template='plotly_dark',
-                            title=f'Laws Passed in {location}',
+                            title=f'Top 5 Classes of Restrictive Laws Passed in {location}',
                             color = 'Law Class'
-                        )
+        )
         tree_fig.update_traces(
                             hovertemplate='# Laws=%{value}'
-                        )
+        )
+        tree_fig.update_layout(
+            margin=dict(l=0, r=0, t=30, b=0),
+            height=200
+        )
         return tree_fig
 
+#Configure reactivity for line chart based on click
+@app.callback(
+    Output('state_timeline', 'figure'), 
+    Input('state_law_freq_map', 'clickData')
+) 
 
+def update_linechart_on_click(click_state):
+    if not click_state:
+        #raise dash.exceptions.PreventUpdate
+        location = law_df['State'].sort_values().iloc[0]
+        filtered = law_df[law_df['State']==location]
+        filtered = filtered[filtered['Year']>=1991]
+
+        #filtered = law_df[law_df['State']=="Missouri"]
+
+
+        timeline_df = pd.DataFrame(filtered['Year'].value_counts()).reset_index()
+        timeline_df = timeline_df.rename(
+                    columns={
+                        'index': 'Year',
+                        'Year':'# Laws'
+                    }
+                )
+
+        timeline_fig = px.area(
+                            timeline_df,
+                            x='Year',
+                            y='# Laws',
+                            template='plotly_dark',
+                            markers=True,
+                            title = f'Total # Laws Passed in {location} (1991 to 2020)'
+
+        )
+        timeline_fig.update_layout(
+            margin=dict(l=0, r=0, t=30, b=0),
+            height=200
+        )
+        return timeline_fig
+    else:
+        location = click_state['points'][0]['hovertext']
+        filtered = law_df[law_df['State']==location]
+        filtered = filtered[filtered['Year']>=1991]
+
+
+        timeline_df = pd.DataFrame(filtered['Year'].value_counts()).reset_index()
+        timeline_df = timeline_df.rename(
+                    columns={
+                        'index': 'Year',
+                        'Year':'# Laws'
+                    }
+        ).sort_values(by='Year',ascending=False)
+
+        timeline_fig = px.area(
+                            timeline_df,
+                            x='Year',
+                            y='# Laws',
+                            template='plotly_dark',
+                            markers=True,
+                            title = f'Total # Laws Passed in {location} (1991 to 2020)'
+ 
+        )
+        timeline_fig.update_layout(
+            margin=dict(l=0, r=0, t=30, b=0),
+            height=200
+        )
+        return timeline_fig
 # @app.callback(
 #     Output("modal0", "is_open"),
 #     Input("open0", "n_clicks"), 
