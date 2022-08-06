@@ -7,8 +7,8 @@ import plotly.express as px
 import dash
 from dash import dcc, html
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output
-from dash import dash_table as dt
+from dash.dependencies import Input, Output, State
+#from dash import dash_table as dt
 
 
 #Read in data for Github
@@ -104,6 +104,9 @@ app.layout = html.Div([
             children=[
                 dbc.Row([
                     dbc.Col([
+                        html.P('Select Law Type:')
+                    ],width=2),
+                    dbc.Col([
                         dcc.RadioItems(
                                 id='radio1',
                                 options=[
@@ -116,7 +119,56 @@ app.layout = html.Div([
                                 labelStyle={'display': 'block','text-align': 'left'}
 
                         ),
-                    ],width=12),
+                    ],width=4),
+                    dbc.Col([
+                        html.Div([
+                            dbc.Button("Click Here for Law Descriptions", id="open1",color='secondary',style={"fontSize":18}),
+                                dbc.Modal([
+                                    dbc.ModalHeader("Descriptions"),
+                                    dbc.ModalBody(
+                                        children=[
+                                            html.P(dcc.Markdown('''**1.) carrying a concealed weapon (ccw)**''')),
+                                            html.P('The act or practice of carrying a concealed firearm in public or the legal right to do so.'),
+                                            html.P(dcc.Markdown('''**2.) castle doctrine**''')),
+                                            html.P("The legal doctrine that designates a person's abode or any legally occupied place as a place in which that person has protections and immunities permitting one, in certain circumstances, to use force (up to and including deadly force) to defend oneself against an intruder, free from legal prosecution for the consequences of the force used."),
+                                            html.P(dcc.Markdown('''**3.) dealer license**''')),
+                                            html.P('Requires dealers of firearms to be licensed by the state'),
+                                            html.P(dcc.Markdown('''**4.) minimum age**''')),
+                                            html.P('Establishes a minimum age for possession of a gun '),
+                                            html.P(dcc.Markdown('''**5.) registration**''')),
+                                            html.P('Requires a recordkeeping system controlled by a government agency that stores the names of current owners of each firearm of a specific class and requires that these records are updated after firearms are transferred to a new owner (with few exceptions)'),
+                                            html.P(dcc.Markdown('''**6.) waiting period**''')),
+                                            html.P('Establishes the minimum amount of time sellers must wait before delivering a gun to a purchaser'),
+                                            html.P(dcc.Markdown('''**7.) prohibited possessor**''')),
+                                            html.P('Prohibits the possession of firearms by individuals adjudicated as being mentally incompetent, incapacitated, or disabled; '),
+                                            html.P(dcc.Markdown('''**8.) background checks**''')),
+                                            html.P('Requires a background check of individuals purchasing guns'),
+                                            html.P(dcc.Markdown('''**9.) local laws preempted by state**''')),
+                                            html.P('Prohibits local laws'),
+                                            html.P(dcc.Markdown('''**10.) firearm removal at scene of domestic violence**''')),
+                                            html.P('Requires police officers to seize a firearm at the scene of a domestic violence incident'),
+                                            html.P(dcc.Markdown('''**11.) firearms in college/university**''')),
+                                            html.P('Prohibits the possession of all firearms on the property of all private colleges and universities'),
+                                            html.P(dcc.Markdown('''**12.) child access laws**''')),
+                                            html.P('Mandates safe storage of guns and prohibits individuals from furnishing guns to minors'),
+                                            html.P(dcc.Markdown('''**13.) firearm sales restrictions**''')),
+                                            html.P('Bans the sale of specific firearms'),
+                                            html.P(dcc.Markdown('''**14.) open carry**''')),
+                                            html.P('Dictates whether licenses for the open carrying of guns is required'),
+                                            html.P(dcc.Markdown('''**15.) safety training required**''')),
+                                            html.P('Requires a safety training certificate for the purchase of a firearm'),
+                                            html.P(dcc.Markdown('''**16.) permit to purchase**''')),
+                                            html.P('Requires prospective purchasers to first obtain a license or permit from law enforcement'),
+                                            html.P(dcc.Markdown('''**17.) required reporting of lost or stolen firearms**''')),
+                                            html.P('Requires victims of theft and loss of firearms to report the incident to relevant authorities')
+                                        ]
+                                    ),
+                                    dbc.ModalFooter(
+                                        dbc.Button("Close", id="close1", className="ml-auto")
+                                    ),
+                                ],id="modal1",size="xl",scrollable=True),
+                        ],className="d-grid gap-2"),
+                    ],width=6),
                     dbc.Col([
                         dcc.Graph(id='state_law_freq_map')
                     ],width=6),
@@ -419,17 +471,18 @@ def update_linechart_on_click(click_state):
             height=200
         )
         return timeline_fig
-# @app.callback(
-#     Output("modal0", "is_open"),
-#     Input("open0", "n_clicks"), 
-#     Input("close0", "n_clicks"),
-#     State("modal0", "is_open")
-# )
 
-# def toggle_modal0(n1, n2, is_open):
-#     if n1 or n2:
-#         return not is_open
-#     return is_open
+@app.callback(
+    Output("modal1", "is_open"),
+    Input("open1", "n_clicks"), 
+    Input("close1", "n_clicks"),
+    State("modal1", "is_open")
+)
+
+def toggle_modal1(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
 
 
 
