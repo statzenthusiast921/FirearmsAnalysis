@@ -46,8 +46,18 @@ law_df['State'] = np.where(law_df['State']=='DIstrict of Columbia', 'District of
 #Clean up Cluster dataframe
 del cluster_df['min_age'], cluster_df['wait_days']
             
-           
- 
+variable_choices = [
+    'avg_own_est',
+    'DEM_Perc',
+    'GOP_Perc',
+    'GunsAmmo',
+    'HuntLic',
+    'Income',
+    'len_text',
+    'Pop',
+    'sentiment_score'
+]
+
 tabs_styles = {
     'height': '44px'
 }
@@ -220,8 +230,17 @@ app.layout = html.Div([
                                     #     2010: '2010',
                                     #     2020: '2020'
                                     # }
-                                ),
-
+                                )
+                    ],width=6),
+                    dbc.Col([
+                        dcc.Dropdown(
+                            id='dropdown1',
+                            options=[{'label': i, 'value': i} for i in variable_choices],
+                            value=variable_choices[0],
+                            multi=True
+                        )
+                    ],width=6),
+                    dbc.Col([
                         dcc.Graph(id='cluster_map')
                     ],width=12)
                 ])
@@ -611,15 +630,24 @@ def update_area_chart_on_click(click_state):
 #Configure reactivity of cluster map controlled by range slider
 @app.callback(
     Output('cluster_map', 'figure'), 
-    Input('range_slider', 'value')
+    Input('range_slider', 'value'),
+    Input('dropdown1','value')
 ) 
 
-def update_cluster_map(slider_range_values):
+def update_cluster_map(slider_range_values,dropdown_values):
     filtered = cluster_df[(cluster_df['Year']>=slider_range_values[0]) & (cluster_df['Year']<=slider_range_values[1])]
     #filtered = cluster_df[(cluster_df['Year']>=2016) & (cluster_df['Year']<=2020)]
 
     #Step 1.) Choose columns for clustering
-    X = filtered[['State','ST','Year','Suicides','Homicides','len_text','sentiment_score','Income','Pop','DEM_Perc','GOP_Perc','HuntLic','GunsAmmo','avg_own_est']]
+    fixed_names = ['State','ST','Year','Suicides','Homicides']
+
+    #dropdown_names = dropdown_values
+    dropdown_names = ['avg_own_est']
+    #print(dropdown_names)
+    fixed_names.extend(dropdown_names)
+    #print(fixed_names)
+
+    X = filtered[fixed_names]#,'len_text','sentiment_score','Income','Pop','DEM_Perc','GOP_Perc','HuntLic','GunsAmmo','avg_own_est']]
 
     #Step 2.) Imputation needed
     states = pd.DataFrame(X[['State','ST']])
@@ -644,7 +672,7 @@ def update_cluster_map(slider_range_values):
 
     SSE = []
     for cluster in range(1,20):
-        kmeans = KMeans(n_jobs = -1, n_clusters = cluster, init='k-means++')
+        kmeans = KMeans(n_clusters = cluster, init='k-means++')
         kmeans.fit(data_scaled)
         SSE.append(kmeans.inertia_)
         
@@ -654,7 +682,7 @@ def update_cluster_map(slider_range_values):
 
     elbow = kl.elbow
 
-    kmeans = KMeans(n_jobs = -1, n_clusters = elbow, init='k-means++')
+    kmeans = KMeans(n_clusters = elbow, init='k-means++')
     kmeans.fit(data_scaled)
     pred = kmeans.predict(data_scaled)
 
@@ -667,6 +695,7 @@ def update_cluster_map(slider_range_values):
 
     not_states_fixed = not_states_fixed.dropna()
     not_states_fixed['cluster'] = clusters.values
+    not_states_fixed['cluster'] = not_states_fixed['cluster'].astype('str')
 
     state_list = states['State'].values.tolist()
     st_list = states['ST'].values.tolist()
@@ -683,7 +712,7 @@ def update_cluster_map(slider_range_values):
                     template='plotly_dark',
                     hover_name='State',
                     #title='Restrictive Laws by Type (1991-2020)',
-                    color_continuous_scale="Viridis",
+                    #color_continuous_scale="Viridis",
                     locationmode='USA-states',
                     # labels={
                     #     'Count':'# Laws Passed',
