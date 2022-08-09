@@ -37,7 +37,7 @@ law_df = law_df[law_df['Effective Date'].notnull()]
 
 
 law_type_choices = law_df['Law Class'].unique()
-
+state_choices = cluster_df['State'].unique()
 #Fix Mississippi and DC labels
 law_df['State'] = np.where(law_df['State']=='MIssissippi', 'Mississippi', law_df['State'])
 law_df['State'] = np.where(law_df['State']=='DIstrict of Columbia', 'District of Columbia', law_df['State'])
@@ -217,7 +217,7 @@ app.layout = html.Div([
                                     min=1991,
                                     max=2020,
                                     step=1,
-                                    value=[2016, 2020],
+                                    value=[1991, 2020],
                                     allowCross=False,
                                     pushable=2,
                                     tooltip={"placement": "bottom", "always_visible": True},
@@ -231,15 +231,22 @@ app.layout = html.Div([
                                     #     2020: '2020'
                                     # }
                                 )
-                    ],width=6),
+                    ],width=4),
                     dbc.Col([
                         dcc.Dropdown(
                             id='dropdown1',
                             options=[{'label': i, 'value': i} for i in variable_choices],
-                            value=variable_choices[0],
+                            value=variable_choices[0:2],
                             multi=True
                         )
-                    ],width=6),
+                    ],width=4),
+                    dbc.Col([
+                        dcc.Dropdown(
+                            id='dropdown2',
+                            options=[{'label': i, 'value': i} for i in state_choices],
+                            value=state_choices[0],
+                        )
+                    ],width=4),
                     dbc.Col([
                         dcc.Graph(id='cluster_map')
                     ],width=12)
@@ -631,23 +638,20 @@ def update_area_chart_on_click(click_state):
 @app.callback(
     Output('cluster_map', 'figure'), 
     Input('range_slider', 'value'),
-    Input('dropdown1','value')
+    Input('dropdown1','value'),
+    Input('dropdown2','value')
 ) 
 
-def update_cluster_map(slider_range_values,dropdown_values):
+def update_cluster_map(slider_range_values,dd1_values, dd2):
     filtered = cluster_df[(cluster_df['Year']>=slider_range_values[0]) & (cluster_df['Year']<=slider_range_values[1])]
-    #filtered = cluster_df[(cluster_df['Year']>=2016) & (cluster_df['Year']<=2020)]
 
     #Step 1.) Choose columns for clustering
     fixed_names = ['State','ST','Year','Suicides','Homicides']
+    dropdown_names = dd1_values
 
-    #dropdown_names = dropdown_values
-    dropdown_names = ['avg_own_est']
-    #print(dropdown_names)
     fixed_names.extend(dropdown_names)
-    #print(fixed_names)
 
-    X = filtered[fixed_names]#,'len_text','sentiment_score','Income','Pop','DEM_Perc','GOP_Perc','HuntLic','GunsAmmo','avg_own_est']]
+    X = filtered[fixed_names]
 
     #Step 2.) Imputation needed
     states = pd.DataFrame(X[['State','ST']])
@@ -704,8 +708,16 @@ def update_cluster_map(slider_range_values,dropdown_values):
     not_states_fixed['ST'] = st_list
 
     X = not_states_fixed
+    #Filter out clusters not with selected states
+    # state_selected = dd2
+    # cluster_selected = X[X['State']==state_selected]['cluster'].tolist()[0]
+    # X_cluster = X[X['cluster']==cluster_selected]
+
+    #what needs to happen here is to have the options of states filtered by the 
+    #time we get to the point
 
     fig = px.choropleth(
+        #X_cluster,
         X,
         locations='ST',
                     color='cluster',
