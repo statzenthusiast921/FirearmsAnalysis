@@ -42,9 +42,6 @@ state_choices = cluster_df['State'].unique()
 law_df['State'] = np.where(law_df['State']=='MIssissippi', 'Mississippi', law_df['State'])
 law_df['State'] = np.where(law_df['State']=='DIstrict of Columbia', 'District of Columbia', law_df['State'])
 
-
-#Clean up Cluster dataframe
-del cluster_df['min_age'], cluster_df['wait_days']
             
 variable_choices = [
     'avg_own_est',
@@ -57,6 +54,14 @@ variable_choices = [
     'Pop',
     'sentiment_score'
 ]
+
+# Year --> State Dictionary
+df_for_dict = cluster_df[['Year','State']]
+df_for_dict = df_for_dict.drop_duplicates(subset='State',keep='first')
+year_state_dict = df_for_dict.groupby('Year')['State'].apply(list).to_dict()
+
+year_state_dict_sorted = {l: sorted(m) for l, m in year_state_dict.items()} #sort value by list
+
 
 tabs_styles = {
     'height': '44px'
@@ -220,36 +225,35 @@ app.layout = html.Div([
                                     value=[1991, 2020],
                                     allowCross=False,
                                     pushable=2,
-                                    tooltip={"placement": "bottom", "always_visible": True},
-                                    # marks={
-                                    #     1961: '1961',
-                                    #     1970: '1970',
-                                    #     1980: '1980',
-                                    #     1990: '1990',
-                                    #     2000: '2000',
-                                    #     2010: '2010',
-                                    #     2020: '2020'
-                                    # }
+                                    tooltip={"placement": "bottom", "always_visible": True}
                                 )
-                    ],width=4),
+                    ],width=6),
+            
                     dbc.Col([
                         dcc.Dropdown(
                             id='dropdown1',
-                            options=[{'label': i, 'value': i} for i in variable_choices],
-                            value=variable_choices[0:2],
-                            multi=True
-                        )
-                    ],width=4),
-                    dbc.Col([
-                        dcc.Dropdown(
-                            id='dropdown2',
                             options=[{'label': i, 'value': i} for i in state_choices],
                             value=state_choices[0],
                         )
+                    ],width=6)
+                ]),
+                #Card row
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Card(id='card1')     
                     ],width=4),
+                    dbc.Col([
+                        dbc.Card(id='card2')     
+                    ],width=4),
+                    dbc.Col([
+                        dbc.Card(id='card3')     
+                    ],width=4)
+                 ]),
+                 dbc.Row([
                     dbc.Col([
                         dcc.Graph(id='cluster_map')
                     ],width=12)
+             
                 ])
             ]
         )
@@ -569,7 +573,7 @@ def update_tree_map_on_click(radio_select,click_state):
         )
         return tree_fig
 
-#Configure reactivity for line chart based on click
+#Configure reactivity for area chart based on click
 @app.callback(
     Output('state_timeline', 'figure'), 
     Input('state_law_freq_map', 'clickData')
@@ -634,24 +638,32 @@ def update_area_chart_on_click(click_state):
         return timeline_fig
 #-----------------------------Tab #3: Clustering -----------------------------#
 
+
+
+
 #Configure reactivity of cluster map controlled by range slider
 @app.callback(
     Output('cluster_map', 'figure'), 
-    Input('range_slider', 'value'),
-    Input('dropdown1','value'),
-    Input('dropdown2','value')
+    Output('dropdown1', 'options'),
+    Output('dropdown1','value'),
+    Input('range_slider', 'value')
+
 ) 
 
-def update_cluster_map(slider_range_values,dd1_values, dd2):
+def update_cluster_map(slider_range_values):#,state_choice):
     filtered = cluster_df[(cluster_df['Year']>=slider_range_values[0]) & (cluster_df['Year']<=slider_range_values[1])]
+    #filtered = cluster_df[(cluster_df['Year']>=1991) & (cluster_df['Year']<=2020)]
+
+
+
 
     #Step 1.) Choose columns for clustering
-    fixed_names = ['State','ST','Year','Suicides','Homicides']
-    dropdown_names = dd1_values
+    # fixed_names = ['State','ST','Year','Suicides','Homicides']
+    # dropdown_names = dd1_values
+    # #dropdown_names = ['GOP_Perc','DEM_Perc','avg_own_est']
+    # fixed_names.extend(dropdown_names)
 
-    fixed_names.extend(dropdown_names)
-
-    X = filtered[fixed_names]
+    X = filtered#[fixed_names]
 
     #Step 2.) Imputation needed
     states = pd.DataFrame(X[['State','ST']])
@@ -660,6 +672,7 @@ def update_cluster_map(slider_range_values,dd1_values, dd2):
     #Step 2a.) Impute the non-text columns
     imputer = KNNImputer(n_neighbors=5)
     not_states_fixed = pd.DataFrame(imputer.fit_transform(not_states),columns=not_states.columns)
+
 
   
 
@@ -708,17 +721,18 @@ def update_cluster_map(slider_range_values,dd1_values, dd2):
     not_states_fixed['ST'] = st_list
 
     X = not_states_fixed
-    #Filter out clusters not with selected states
-    # state_selected = dd2
-    # cluster_selected = X[X['State']==state_selected]['cluster'].tolist()[0]
-    # X_cluster = X[X['cluster']==cluster_selected]
 
-    #what needs to happen here is to have the options of states filtered by the 
-    #time we get to the point
+    #Need to roll up to state level
+    state_df = X.groupby(['State','ST'], as_index=False).agg(lambda x : x.head(1) if x.dtype=='object' else x.mean())
+
+    #This is the filtered list that gets populated in the dropdown box
+    state_list = state_df['State'].unique().tolist()
+
+
+
 
     fig = px.choropleth(
-        #X_cluster,
-        X,
+        state_df,
         locations='ST',
                     color='cluster',
                     template='plotly_dark',
@@ -731,8 +745,78 @@ def update_cluster_map(slider_range_values,dd1_values, dd2):
                     #     'ST':'State'
                     # },
                     scope='usa')
+
+   
+
             
-    return fig
+    return fig, [{'label':i,'value':i} for i in state_list], state_list[0]#, card1, card2, card3
+    
+
+#Configure reactivity of cards based on dynamic dropdown box
+@app.callback(
+
+    Output('card1','children'),
+    Output('card2','children'),
+    Output('card3','children'),
+    Input('range_slider', 'value'),
+    Input('dropdown1','value')
+) 
+
+def update_cards(range_slider,state_choice):
+    filtered = cluster_df[(cluster_df['Year']>=range_slider[0]) & (cluster_df['Year']<=range_slider[1])]
+    #filtered = cluster_df[(cluster_df['Year']>=1991) & (cluster_df['Year']<=2020)]
+    filtered = filtered[filtered['State']==state_choice]
+
+    stat1 = filtered.shape[0]
+    stat2 = round(filtered['Suicides'].mean(),2)
+    stat3 = round(filtered['Homicides'].mean(),2)
+
+    card1 = dbc.Card([
+        dbc.CardBody([
+            html.P(f'# Laws Passed in {state_choice} between {range_slider[0]} and {range_slider[1]}'),
+            html.H6(stat1),
+        ])
+    ],
+    style={'display': 'inline-block',
+           #'width': '20%',
+           'text-align': 'center',
+           'background-color': '#70747c',
+           'color':'white',
+           'fontWeight': 'bold',
+           'fontSize':20},
+    outline=True)
+
+    card2 = dbc.Card([
+        dbc.CardBody([
+            html.P(f'Avg Suicide Rate for {state_choice} between {range_slider[0]} and {range_slider[1]}'),
+            html.H6(f'{stat2} per 100K'),
+        ])
+    ],
+    style={'display': 'inline-block',
+           #'width': '20%',
+           'text-align': 'center',
+           'background-color': '#70747c',
+           'color':'white',
+           'fontWeight': 'bold',
+           'fontSize':20},
+    outline=True)
+
+    card3 = dbc.Card([
+        dbc.CardBody([
+            html.P(f'Avg Homicide Rate for {state_choice} between {range_slider[0]} and {range_slider[1]}'),
+            html.H6(f'{stat3} per 100K'),
+        ])
+    ],
+    style={'display': 'inline-block',
+           #'width': '20%',
+           'text-align': 'center',
+           'background-color': '#70747c',
+           'color':'white',
+           'fontWeight': 'bold',
+           'fontSize':20},
+    outline=True)
+
+    return card1, card2, card3
     
 
 @app.callback(
