@@ -37,7 +37,7 @@ law_df = law_df[law_df['Effective Date'].notnull()]
 
 
 law_type_choices = law_df['Law Class'].unique()
-state_choices = cluster_df['State'].unique()
+cluster_choices = ["Cluster 1","Cluster 2","Cluster 3","Cluster 4","Cluster 5"]
 #Fix Mississippi and DC labels
 law_df['State'] = np.where(law_df['State']=='MIssissippi', 'Mississippi', law_df['State'])
 law_df['State'] = np.where(law_df['State']=='DIstrict of Columbia', 'District of Columbia', law_df['State'])
@@ -232,8 +232,8 @@ app.layout = html.Div([
                     dbc.Col([
                         dcc.Dropdown(
                             id='dropdown1',
-                            options=[{'label': i, 'value': i} for i in state_choices],
-                            value=state_choices[0],
+                            options=[{'label': i, 'value': i} for i in cluster_choices],
+                            value=cluster_choices[0],
                         )
                     ],width=6)
                 ]),
@@ -638,30 +638,19 @@ def update_area_chart_on_click(click_state):
         return timeline_fig
 #-----------------------------Tab #3: Clustering -----------------------------#
 
-
-
-
 #Configure reactivity of cluster map controlled by range slider
 @app.callback(
     Output('cluster_map', 'figure'), 
     Output('dropdown1', 'options'),
     Output('dropdown1','value'),
     Input('range_slider', 'value')
+    
 
 ) 
 
 def update_cluster_map(slider_range_values):#,state_choice):
     filtered = cluster_df[(cluster_df['Year']>=slider_range_values[0]) & (cluster_df['Year']<=slider_range_values[1])]
     #filtered = cluster_df[(cluster_df['Year']>=1991) & (cluster_df['Year']<=2020)]
-
-
-
-
-    #Step 1.) Choose columns for clustering
-    # fixed_names = ['State','ST','Year','Suicides','Homicides']
-    # dropdown_names = dd1_values
-    # #dropdown_names = ['GOP_Perc','DEM_Perc','avg_own_est']
-    # fixed_names.extend(dropdown_names)
 
     X = filtered#[fixed_names]
 
@@ -672,10 +661,6 @@ def update_cluster_map(slider_range_values):#,state_choice):
     #Step 2a.) Impute the non-text columns
     imputer = KNNImputer(n_neighbors=5)
     not_states_fixed = pd.DataFrame(imputer.fit_transform(not_states),columns=not_states.columns)
-
-
-  
-
 
     #Step 3.) Perform clustering
     scaler = StandardScaler()
@@ -703,7 +688,6 @@ def update_cluster_map(slider_range_values):#,state_choice):
     kmeans.fit(data_scaled)
     pred = kmeans.predict(data_scaled)
 
-
     frame = pd.DataFrame(data_scaled)
     frame['cluster'] = pred
     frame['cluster'].value_counts()
@@ -722,101 +706,106 @@ def update_cluster_map(slider_range_values):#,state_choice):
 
     X = not_states_fixed
 
-    #Need to roll up to state level
-    state_df = X.groupby(['State','ST'], as_index=False).agg(lambda x : x.head(1) if x.dtype=='object' else x.mean())
-
+    
     #This is the filtered list that gets populated in the dropdown box
-    state_list = state_df['State'].unique().tolist()
+    cluster_list = X['cluster'].unique().tolist()
+    cluster_list.sort()
+    label = 'Cluster '
+    new_cluster_list = [label + x for x in cluster_list]
 
+    sortedX = X.sort_values(by='cluster',ascending=True)
+    sortedX['cluster'] = sortedX['cluster'].astype(int)
 
+    fig = px.scatter(
+        sortedX,
+        x="Suicides", 
+        y="Homicides", 
+        color="cluster",
+        color_continuous_scale="Greys",
+        hover_data = {
+            "State":True,
+            "Year":True,
+            "Suicides":True,
+            "Homicides":True
+        },
+        template='plotly_dark'
 
-
-    fig = px.choropleth(
-        state_df,
-        locations='ST',
-                    color='cluster',
-                    template='plotly_dark',
-                    hover_name='State',
-                    #title='Restrictive Laws by Type (1991-2020)',
-                    #color_continuous_scale="Viridis",
-                    locationmode='USA-states',
-                    # labels={
-                    #     'Count':'# Laws Passed',
-                    #     'ST':'State'
-                    # },
-                    scope='usa')
-
+    )
+    fig.update_traces(marker=dict(size=10,
+                              line=dict(width=0.5,
+                                        color='white')),
+                  selector=dict(mode='markers'))
    
 
             
-    return fig, [{'label':i,'value':i} for i in state_list], state_list[0]#, card1, card2, card3
+    return fig, [{'label':i,'value':i} for i in new_cluster_list], new_cluster_list[0]
     
 
-#Configure reactivity of cards based on dynamic dropdown box
-@app.callback(
+# #Configure reactivity of cards based on dynamic dropdown box
+# @app.callback(
 
-    Output('card1','children'),
-    Output('card2','children'),
-    Output('card3','children'),
-    Input('range_slider', 'value'),
-    Input('dropdown1','value')
-) 
+#     Output('card1','children'),
+#     Output('card2','children'),
+#     Output('card3','children'),
+#     Input('range_slider', 'value'),
+#     Input('dropdown1','value')
+# ) 
 
-def update_cards(range_slider,state_choice):
-    filtered = cluster_df[(cluster_df['Year']>=range_slider[0]) & (cluster_df['Year']<=range_slider[1])]
-    #filtered = cluster_df[(cluster_df['Year']>=1991) & (cluster_df['Year']<=2020)]
-    filtered = filtered[filtered['State']==state_choice]
+# def update_cards(range_slider,state_choice):
+#     filtered = cluster_df[(cluster_df['Year']>=range_slider[0]) & (cluster_df['Year']<=range_slider[1])]
+#     #filtered = cluster_df[(cluster_df['Year']>=1991) & (cluster_df['Year']<=2020)]
+#     filtered = filtered[filtered['State']==state_choice]
 
-    stat1 = filtered.shape[0]
-    stat2 = round(filtered['Suicides'].mean(),2)
-    stat3 = round(filtered['Homicides'].mean(),2)
+#     stat1 = filtered.shape[0]
+#     stat2 = round(filtered['Suicides'].mean(),2)
+#     stat3 = round(filtered['Homicides'].mean(),2)
 
-    card1 = dbc.Card([
-        dbc.CardBody([
-            html.P(f'# Laws Passed in {state_choice} between {range_slider[0]} and {range_slider[1]}'),
-            html.H6(stat1),
-        ])
-    ],
-    style={'display': 'inline-block',
-           #'width': '20%',
-           'text-align': 'center',
-           'background-color': '#70747c',
-           'color':'white',
-           'fontWeight': 'bold',
-           'fontSize':20},
-    outline=True)
+#     card1 = dbc.Card([
+#         dbc.CardBody([
+#             html.P(f'# Laws Passed in {state_choice}'),
+#             html.H6(stat1),
+#         ])
+#     ],
+#     style={'display': 'inline-block',
+#            #'width': '20%',
+#            'text-align': 'center',
+#            'background-color': '#70747c',
+#            'color':'white',
+#            'fontWeight': 'bold',
+#            'fontSize':20},
+#     outline=True)
 
-    card2 = dbc.Card([
-        dbc.CardBody([
-            html.P(f'Avg Suicide Rate for {state_choice} between {range_slider[0]} and {range_slider[1]}'),
-            html.H6(f'{stat2} per 100K'),
-        ])
-    ],
-    style={'display': 'inline-block',
-           #'width': '20%',
-           'text-align': 'center',
-           'background-color': '#70747c',
-           'color':'white',
-           'fontWeight': 'bold',
-           'fontSize':20},
-    outline=True)
+#     card2 = dbc.Card([
+#         dbc.CardBody([
+#             html.P(f'Avg Suicide Rate for {state_choice}'),
+#             html.H6(f'{stat2} per 100K'),
+#         ])
+#     ],
+#     style={'display': 'inline-block',
+#            #'width': '20%',
+#            'text-align': 'center',
+#            'background-color': '#70747c',
+#            'color':'white',
+#            'fontWeight': 'bold',
+#            'fontSize':20},
+#     outline=True)
 
-    card3 = dbc.Card([
-        dbc.CardBody([
-            html.P(f'Avg Homicide Rate for {state_choice} between {range_slider[0]} and {range_slider[1]}'),
-            html.H6(f'{stat3} per 100K'),
-        ])
-    ],
-    style={'display': 'inline-block',
-           #'width': '20%',
-           'text-align': 'center',
-           'background-color': '#70747c',
-           'color':'white',
-           'fontWeight': 'bold',
-           'fontSize':20},
-    outline=True)
+#     card3 = dbc.Card([
+#         dbc.CardBody([
+#             html.P(f'Avg Homicide Rate for {state_choice}'),
+#             html.H6(f'{stat3} per 100K'),
+#         ])
+#     ],
+#     style={'display': 'inline-block',
+#            #'width': '20%',
+#            'text-align': 'center',
+#            'background-color': '#70747c',
+#            'color':'white',
+#            'fontWeight': 'bold',
+#            'fontSize':20},
+#     outline=True)
 
-    return card1, card2, card3
+#     return card1, card2, card3
     
 
 @app.callback(
