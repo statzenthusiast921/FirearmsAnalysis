@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import os
 import plotly.express as px
+import plotly.graph_objects as go
 import dash
 from dash import dcc, html
 import dash_bootstrap_components as dbc
@@ -18,22 +19,29 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
+
+from sklearn.feature_extraction.text import CountVectorizer
+count_vectorizer = CountVectorizer(stop_words='english')
+from sklearn.metrics.pairwise import cosine_similarity
+
 #from dash import dash_table as dt
 
 
 #Read in data for Github
 law_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/TL-A243-2%20State%20Firearm%20Law%20Database%203.0.csv')
-income_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/median_income_91-18.csv')
-pop_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/states_and_pops.csv')
-prez_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/prez_voting.csv')
-own_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/own_df.csv')
 cluster_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/cluster_df.csv')
+nlp_law_df = pd.read_csv("https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/nlp_law_df.csv")
+
 law_df = law_df.rename(
     columns={
         'Effective Date Year': 'Year',
         'State Postal Abbreviation':'ST'
     })
 law_df = law_df[law_df['Effective Date'].notnull()]
+cluster_df.drop(cluster_df[cluster_df['SuicidesB3'] == 0].index, inplace=True)
+cluster_df.drop(cluster_df[cluster_df['SuicidesA3'] == 0].index, inplace=True)
+cluster_df.drop(cluster_df[cluster_df['HomicidesB3'] == 0].index, inplace=True)
+cluster_df.drop(cluster_df[cluster_df['HomicidesA3'] == 0].index, inplace=True)
 
 
 law_type_choices = law_df['Law Class'].unique()
@@ -254,6 +262,37 @@ app.layout = html.Div([
                         dcc.Graph(id='cluster_map')
                     ],width=12)
              
+                ])
+            ]
+        ),
+        dcc.Tab(label='Cosine Similarity',value='tab-4',style=tab_style, selected_style=tab_selected_style,
+            children=[
+                dbc.Row([
+                    dbc.Col([
+                        dcc.RangeSlider(
+                                    id='range_slider2',
+                                    min=1991,
+                                    max=2020,
+                                    step=1,
+                                    value=[1991, 2020],
+                                    allowCross=False,
+                                    pushable=2,
+                                    tooltip={"placement": "bottom", "always_visible": True}
+                                )
+                    ],width=6),
+                    dbc.Col([
+                        dcc.Dropdown(
+                            id='dropdown2',
+                            options=[{'label': i, 'value': i} for i in law_type_choices],
+                            value=law_type_choices[0],
+                        )
+                    ],width=6)
+
+                ]),
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Graph(id='cosine_matrix')
+                    ])
                 ])
             ]
         )
@@ -643,20 +682,23 @@ def update_area_chart_on_click(click_state):
     Output('cluster_map', 'figure'), 
     Output('dropdown1', 'options'),
     Output('dropdown1','value'),
-    Input('range_slider', 'value')
+    Input('range_slider', 'value'),
+    Input('dropdown1','value')
     
 
 ) 
 
-def update_cluster_map(slider_range_values):#,state_choice):
+def update_cluster_map(slider_range_values,dd1):#,state_choice):
     filtered = cluster_df[(cluster_df['Year']>=slider_range_values[0]) & (cluster_df['Year']<=slider_range_values[1])]
     #filtered = cluster_df[(cluster_df['Year']>=1991) & (cluster_df['Year']<=2020)]
+    
 
     X = filtered#[fixed_names]
+    del X['Law ID'], X['UniqueID'], X['ST'], X['Suicides'], X['Homicides'], X['HomicidesB3'], X['SuicidesB3']
 
     #Step 2.) Imputation needed
-    states = pd.DataFrame(X[['State','ST']])
-    not_states = X.loc[:, ~X.columns.isin(['State','ST'])]
+    states = pd.DataFrame(X[['State']])
+    not_states = X.loc[:, ~X.columns.isin(['State'])]
 
     #Step 2a.) Impute the non-text columns
     imputer = KNNImputer(n_neighbors=5)
@@ -699,10 +741,8 @@ def update_cluster_map(slider_range_values):#,state_choice):
     not_states_fixed['cluster'] = not_states_fixed['cluster'].astype('str')
 
     state_list = states['State'].values.tolist()
-    st_list = states['ST'].values.tolist()
 
     not_states_fixed['State'] = state_list
-    not_states_fixed['ST'] = st_list
 
     X = not_states_fixed
 
@@ -714,22 +754,25 @@ def update_cluster_map(slider_range_values):#,state_choice):
     new_cluster_list = [label + x for x in cluster_list]
 
     sortedX = X.sort_values(by='cluster',ascending=True)
-    sortedX['cluster'] = sortedX['cluster'].astype(int)
+    sortedX['cluster'] = sortedX['cluster'].astype('str')
+
+    #sortedX.to_csv('test_X.csv', index=False)
 
     fig = px.scatter(
         sortedX,
-        x="Suicides", 
-        y="Homicides", 
+        x="SuicidesA3", 
+        y="HomicidesA3", 
         color="cluster",
-        color_continuous_scale="Greys",
         hover_data = {
             "State":True,
             "Year":True,
-            "Suicides":True,
-            "Homicides":True
+            "SuicidesA3":True,
+            "HomicidesA3":True
         },
-        template='plotly_dark'
-
+        template='plotly_dark',
+        color_discrete_map={
+                f"{dd1}": "white"
+        }
     )
     fig.update_traces(marker=dict(size=10,
                               line=dict(width=0.5,
@@ -740,7 +783,49 @@ def update_cluster_map(slider_range_values):#,state_choice):
             
     return fig, [{'label':i,'value':i} for i in new_cluster_list], new_cluster_list[0]
     
+@app.callback(
+    Output('cosine_matrix', 'figure'), 
+    Input('range_slider2', 'value'),
+    Input('dropdown2','value')
+) 
 
+def update_matrix(slider_range_values,dd2):#,state_choice):
+    filtered = nlp_law_df[(nlp_law_df['Year']>=slider_range_values[0]) & (nlp_law_df['Year']<=slider_range_values[1])]
+    filtered = filtered[filtered['Law Class']==dd2]
+
+    #filtered = nlp_law_df[(nlp_law_df['Year']>=2000) & (nlp_law_df['Year']<=2010)]
+    #filtered = filtered[filtered['Effect']=="Restrictive"]
+
+    #Step 1: Take content column and convert to a list
+    lg_list = filtered['Content_cleaned'].tolist()
+
+    #Step 2: Create the Document Term Matrix
+    count_vectorizer = CountVectorizer()
+    sparse_matrix = count_vectorizer.fit_transform(lg_list)
+
+    doc_term_matrix = sparse_matrix.todense()
+    df_test = pd.DataFrame(
+        doc_term_matrix, 
+        columns=count_vectorizer.get_feature_names()
+    )
+
+    #Step 3: Set up matrix
+    array = cosine_similarity(df_test, df_test)
+    matrix = pd.DataFrame(array,columns=filtered['Law ID'].tolist()) 
+
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Heatmap(
+            x = matrix.columns,
+            y = matrix.columns,
+            z = np.array(matrix),
+            text=matrix.values,
+            texttemplate='%{text:.2f}'
+        )
+    )
+    return fig
+    
 # #Configure reactivity of cards based on dynamic dropdown box
 # @app.callback(
 
