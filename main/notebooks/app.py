@@ -46,22 +46,13 @@ cluster_df.drop(cluster_df[cluster_df['HomicidesA3'] == 0].index, inplace=True)
 
 law_type_choices = law_df['Law Class'].unique()
 cluster_choices = ["Cluster 1","Cluster 2","Cluster 3","Cluster 4","Cluster 5"]
+law_list_choices = law_df['Law ID'].unique()
 #Fix Mississippi and DC labels
 law_df['State'] = np.where(law_df['State']=='MIssissippi', 'Mississippi', law_df['State'])
 law_df['State'] = np.where(law_df['State']=='DIstrict of Columbia', 'District of Columbia', law_df['State'])
 
             
-variable_choices = [
-    'avg_own_est',
-    'DEM_Perc',
-    'GOP_Perc',
-    'GunsAmmo',
-    'HuntLic',
-    'Income',
-    'len_text',
-    'Pop',
-    'sentiment_score'
-]
+
 
 # Year --> State Dictionary
 df_for_dict = cluster_df[['Year','State']]
@@ -69,6 +60,8 @@ df_for_dict = df_for_dict.drop_duplicates(subset='State',keep='first')
 year_state_dict = df_for_dict.groupby('Year')['State'].apply(list).to_dict()
 
 year_state_dict_sorted = {l: sorted(m) for l, m in year_state_dict.items()} #sort value by list
+
+
 
 
 tabs_styles = {
@@ -293,6 +286,32 @@ app.layout = html.Div([
                     dbc.Col([
                         dcc.Graph(id='cosine_matrix')
                     ])
+                ]),
+                dbc.Row([
+                      dbc.Col([
+                        dcc.Dropdown(
+                            id='dropdown3',
+                            options=[{'label': i, 'value': i} for i in law_list_choices],
+                            value=law_list_choices[0],
+                        )
+                    ],width=6),
+                      dbc.Col([
+                        dcc.Dropdown(
+                            id='dropdown4',
+                            options=[{'label': i, 'value': i} for i in law_list_choices],
+                            value=law_list_choices[0],
+                        )
+                    ],width=6)
+                ]),
+                dbc.Row([
+                    dbc.Col([
+                        dbc.Card(id='card4'),
+                        dbc.Card(id='card5')
+                    ],width=6),
+                    dbc.Col([
+                        dbc.Card(id='card6'),
+                        dbc.Card(id='card7')
+                    ],width=6)
                 ])
             ]
         )
@@ -318,10 +337,10 @@ def render_content(tab):
             html.H3('Tab content 3')
         ])
 
-#     elif tab == 'tab-4':
-#         return html.Div([
-#             html.H3('Tab content 4')
-#         ])
+    elif tab == 'tab-4':
+        return html.Div([
+            html.H3('Tab content 4')
+        ])
 
 
 #------------------- TAB #2 -------------------#
@@ -681,7 +700,6 @@ def update_area_chart_on_click(click_state):
 @app.callback(
     Output('cluster_map', 'figure'), 
     Output('dropdown1', 'options'),
-    Output('dropdown1','value'),
     Input('range_slider', 'value'),
     Input('dropdown1','value')
     
@@ -781,8 +799,46 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
    
 
             
-    return fig, [{'label':i,'value':i} for i in new_cluster_list], new_cluster_list[0]
+    return fig, [{'label':i,'value':i} for i in new_cluster_list]
     
+
+#-----------------------------Tab #4: Cosine Similarity Matrix for Law Types -----------------------------#
+
+#Configure reactivity for initial filters (dropdown2 and rangeslider2) to filter law dropdowns
+# @app.callback(
+#     Output('dropdown3', 'options'),#-----Filters the Law ID options
+#     Output('dropdown3', 'value'),
+#     Input('dropdown2', 'value'), #----- Select the Law type
+#     Input('range_slider2', 'value')
+
+# )
+# def set_law_options(slider_range_values,selected_law_type):
+#     #Law Type --> Law ID Dictionary
+#     filtered = law_df[(law_df['Year']>=slider_range_values[0]) & (law_df['Year']<=slider_range_values[1])]
+#     law_type_id_dict = filtered.groupby('Law Class')['Law ID'].apply(list).to_dict()
+
+#     # filtered = law_df[(law_df['Year']>=2000) & (law_df['Year']<=2005)]
+#     # law_type_id_dict = filtered.groupby('Law Class')['Law ID'].apply(list).to_dict()
+
+#     return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law_type]], law_type_id_dict[selected_law_type][0]
+
+# @app.callback(
+#     Output('dropdown4', 'options'),#-----Filters the Law ID options
+#     Output('dropdown4', 'value'),
+#     Input('dropdown2', 'value'), #----- Select the Law type
+#     Input('range_slider2', 'value')
+
+# )
+# def set_law_options2(slider_range_values,selected_law_type):
+#     #Law Type --> Law ID Dictionary
+#     filtered = law_df[(law_df['Year']>=slider_range_values[0]) & (law_df['Year']<=slider_range_values[1])]
+#     law_type_id_dict = filtered.groupby('Law Class')['Law ID'].apply(list).to_dict()
+
+#     return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law_type]], law_type_id_dict[selected_law_type][0]
+
+
+
+
 @app.callback(
     Output('cosine_matrix', 'figure'), 
     Input('range_slider2', 'value'),
@@ -812,85 +868,125 @@ def update_matrix(slider_range_values,dd2):#,state_choice):
     #Step 3: Set up matrix
     array = cosine_similarity(df_test, df_test)
     matrix = pd.DataFrame(array,columns=filtered['Law ID'].tolist()) 
+    
+    mask = np.triu(np.ones_like(matrix, dtype=bool))
+    triangle = matrix.mask(mask)
 
+    # fig = go.Figure()
+    # fig.add_trace(
+    #     go.Heatmap(
+    #         x = triangle.columns,
+    #         y = triangle.columns,
+    #         z = np.array(triangle),
+    #         text=triangle.values,
+    #         texttemplate='%{text:.2f}'
+    #     )
+    # )
 
-    fig = go.Figure()
-    fig.add_trace(
-        go.Heatmap(
-            x = matrix.columns,
-            y = matrix.columns,
-            z = np.array(matrix),
-            text=matrix.values,
-            texttemplate='%{text:.2f}'
-        )
+    fig = px.imshow(
+        triangle, 
+        text_auto=True, 
+        aspect="auto",
+        x=triangle.columns,
+        y=triangle.columns,
+        template='plotly_dark',
+        color_continuous_scale="Viridis",
+        # hover_data = {
+        #     "x":True,
+        #     "y":True,
+        #     "color":True,
+        # },
+        labels={
+            'color':'Cosine Similarity'
+        },
+   
+        zmin=0,
+        zmax=1
+
     )
+
     return fig
     
 # #Configure reactivity of cards based on dynamic dropdown box
-# @app.callback(
+@app.callback(
+    Output('card4','children'),
+    Output('card5','children'),
+    Output('card6','children'),
+    Output('card7','children'),
+    Input('dropdown3', 'value'),
+    Input('dropdown4', 'value')
+) 
 
-#     Output('card1','children'),
-#     Output('card2','children'),
-#     Output('card3','children'),
-#     Input('range_slider', 'value'),
-#     Input('dropdown1','value')
-# ) 
+def update_cards1(dd3,dd4):
+    filtered = law_df[law_df['Law ID'].isin([dd3,dd4])]
+    #filtered = law_df[law_df['Law ID'].isin(['AK1003','ME1005'])]
 
-# def update_cards(range_slider,state_choice):
-#     filtered = cluster_df[(cluster_df['Year']>=range_slider[0]) & (cluster_df['Year']<=range_slider[1])]
-#     #filtered = cluster_df[(cluster_df['Year']>=1991) & (cluster_df['Year']<=2020)]
-#     filtered = filtered[filtered['State']==state_choice]
+    law_effect1 = filtered[filtered['Law ID']==dd3]['Effect'].values[0]
+    law_effect2 = filtered[filtered['Law ID']==dd4]['Effect'].values[0]
 
-#     stat1 = filtered.shape[0]
-#     stat2 = round(filtered['Suicides'].mean(),2)
-#     stat3 = round(filtered['Homicides'].mean(),2)
 
-#     card1 = dbc.Card([
-#         dbc.CardBody([
-#             html.P(f'# Laws Passed in {state_choice}'),
-#             html.H6(stat1),
-#         ])
-#     ],
-#     style={'display': 'inline-block',
-#            #'width': '20%',
-#            'text-align': 'center',
-#            'background-color': '#70747c',
-#            'color':'white',
-#            'fontWeight': 'bold',
-#            'fontSize':20},
-#     outline=True)
+    card4 = dbc.Card([
+        dbc.CardBody([
+            html.P(f'Law #{dd3}'),
+            html.H6(f'This is a {law_effect1} law'),
+        ])
+    ],
+    style={'display': 'inline-block',
+           #'width': '20%',
+           'text-align': 'center',
+           'background-color': '#70747c',
+           'color':'white',
+           'fontWeight': 'bold',
+           'fontSize':20},
+    outline=True)
 
-#     card2 = dbc.Card([
-#         dbc.CardBody([
-#             html.P(f'Avg Suicide Rate for {state_choice}'),
-#             html.H6(f'{stat2} per 100K'),
-#         ])
-#     ],
-#     style={'display': 'inline-block',
-#            #'width': '20%',
-#            'text-align': 'center',
-#            'background-color': '#70747c',
-#            'color':'white',
-#            'fontWeight': 'bold',
-#            'fontSize':20},
-#     outline=True)
+    card5 = dbc.Card([
+        dbc.CardBody([
+            html.P('3 Year Average Suicide Rate After Law Passed: XX'),
+            html.P('3 Year Average Homicide Rate After Law Passed: XX'),
+        ])
+    ],
+    style={'display': 'inline-block',
+           #'width': '20%',
+           'text-align': 'center',
+           'background-color': '#70747c',
+           'color':'white',
+           'fontWeight': 'bold',
+           'fontSize':20},
+    outline=True)
 
-#     card3 = dbc.Card([
-#         dbc.CardBody([
-#             html.P(f'Avg Homicide Rate for {state_choice}'),
-#             html.H6(f'{stat3} per 100K'),
-#         ])
-#     ],
-#     style={'display': 'inline-block',
-#            #'width': '20%',
-#            'text-align': 'center',
-#            'background-color': '#70747c',
-#            'color':'white',
-#            'fontWeight': 'bold',
-#            'fontSize':20},
-#     outline=True)
+    card6 = dbc.Card([
+        dbc.CardBody([
+            html.P(f'Law #{dd4}'),
+            html.H6(f'This is a {law_effect2} law'),
+        ])
+    ],
+    style={'display': 'inline-block',
+           #'width': '20%',
+           'text-align': 'center',
+           'background-color': '#70747c',
+           'color':'white',
+           'fontWeight': 'bold',
+           'fontSize':20},
+    outline=True)
 
-#     return card1, card2, card3
+
+    card7 = dbc.Card([
+        dbc.CardBody([
+            html.P('3 Year Average Suicide Rate After Law Passed: XX'),
+            html.P('3 Year Average Homicide Rate After Law Passed: XX'),
+        ])
+    ],
+    style={'display': 'inline-block',
+           #'width': '20%',
+           'text-align': 'center',
+           'background-color': '#70747c',
+           'color':'white',
+           'fontWeight': 'bold',
+           'fontSize':20},
+    outline=True)
+
+    return card4, card5, card6, card7
     
 
 @app.callback(
