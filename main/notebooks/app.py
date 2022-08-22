@@ -28,37 +28,51 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 
 #Read in data for Github
-law_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/TL-A243-2%20State%20Firearm%20Law%20Database%203.0.csv')
-cluster_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/cluster_df.csv')
-nlp_law_df = pd.read_csv("https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/nlp_law_df.csv")
+law_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/law_df_updated.csv')
+cluster_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/cluster_df_updated.csv')
 
+
+#Clean up the law dataset as needed
 law_df = law_df.rename(
     columns={
         'Effective Date Year': 'Year',
         'State Postal Abbreviation':'ST'
     })
 law_df = law_df[law_df['Effective Date'].notnull()]
-cluster_df.drop(cluster_df[cluster_df['SuicidesB3'] == 0].index, inplace=True)
-cluster_df.drop(cluster_df[cluster_df['SuicidesA3'] == 0].index, inplace=True)
-cluster_df.drop(cluster_df[cluster_df['HomicidesB3'] == 0].index, inplace=True)
-cluster_df.drop(cluster_df[cluster_df['HomicidesA3'] == 0].index, inplace=True)
 
 
 law_type_choices = law_df['Law Class'].unique()
-cluster_choices = ["Cluster 1","Cluster 2","Cluster 3","Cluster 4","Cluster 5"]
 law_list_choices = law_df['Law ID'].unique()
 #Fix Mississippi and DC labels
 law_df['State'] = np.where(law_df['State']=='MIssissippi', 'Mississippi', law_df['State'])
 law_df['State'] = np.where(law_df['State']=='DIstrict of Columbia', 'District of Columbia', law_df['State'])
+#Filter to only 1991 laws and alter
+law_df = law_df[law_df['Year']>=1991]
 
-            
 
+#-----Identify laws that have been repealed-----#
+
+repealed_list = law_df.loc[law_df['Content'].str.contains("repealed", case=False)]
+repealed_list = repealed_list[['Law ID']].reset_index()
+del repealed_list['index']
+
+keys = list(repealed_list.columns.values)
+i1 = law_df.set_index(keys).index
+i2 = repealed_list.set_index(keys).index
+law_df = law_df[~i1.isin(i2)]
+
+#Clean up cluster dataset as needed
+# cluster_df.drop(cluster_df[cluster_df['SuicidesB3'] == 0].index, inplace=True)
+# cluster_df.drop(cluster_df[cluster_df['SuicidesA3'] == 0].index, inplace=True)
+# cluster_df.drop(cluster_df[cluster_df['HomicidesB3'] == 0].index, inplace=True)
+# cluster_df.drop(cluster_df[cluster_df['HomicidesA3'] == 0].index, inplace=True)
+
+cluster_choices = ["Cluster 1","Cluster 2","Cluster 3","Cluster 4","Cluster 5"]
 
 # Year --> State Dictionary
 df_for_dict = cluster_df[['Year','State']]
 df_for_dict = df_for_dict.drop_duplicates(subset='State',keep='first')
 year_state_dict = df_for_dict.groupby('Year')['State'].apply(list).to_dict()
-
 year_state_dict_sorted = {l: sorted(m) for l, m in year_state_dict.items()} #sort value by list
 
 
@@ -258,6 +272,8 @@ app.layout = html.Div([
                 ])
             ]
         ),
+#Tab #4 --> Cosine Similarity - Comparing Laws
+
         dcc.Tab(label='Cosine Similarity',value='tab-4',style=tab_style, selected_style=tab_selected_style,
             children=[
                 dbc.Row([
@@ -805,36 +821,40 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
 #-----------------------------Tab #4: Cosine Similarity Matrix for Law Types -----------------------------#
 
 #Configure reactivity for initial filters (dropdown2 and rangeslider2) to filter law dropdowns
-# @app.callback(
-#     Output('dropdown3', 'options'),#-----Filters the Law ID options
-#     Output('dropdown3', 'value'),
-#     Input('dropdown2', 'value'), #----- Select the Law type
-#     Input('range_slider2', 'value')
+@app.callback(
+    Output('dropdown3', 'options'),#-----Filters the Law ID options
+    Output('dropdown3', 'value'),
+    Input('dropdown2', 'value'), #----- Select the Law type
+    #Input('range_slider2', 'value')
 
-# )
-# def set_law_options(slider_range_values,selected_law_type):
-#     #Law Type --> Law ID Dictionary
-#     filtered = law_df[(law_df['Year']>=slider_range_values[0]) & (law_df['Year']<=slider_range_values[1])]
-#     law_type_id_dict = filtered.groupby('Law Class')['Law ID'].apply(list).to_dict()
+)
+def set_law_options(selected_law_type):
+    #Law Type --> Law ID Dictionary
+    #filtered = law_df[(law_df['Year']>=slider_range_values[0]) & (law_df['Year']<=slider_range_values[1])]
+    #law_type_id_dict = filtered.groupby('Law Class')['Law ID'].apply(list).to_dict()
+    law_type_id_dict = law_df.groupby('Law Class')['Law ID'].apply(list).to_dict()
 
-#     # filtered = law_df[(law_df['Year']>=2000) & (law_df['Year']<=2005)]
-#     # law_type_id_dict = filtered.groupby('Law Class')['Law ID'].apply(list).to_dict()
+    # filtered = law_df[(law_df['Year']>=2000) & (law_df['Year']<=2005)]
+    # law_type_id_dict = filtered.groupby('Law Class')['Law ID'].apply(list).to_dict()
 
-#     return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law_type]], law_type_id_dict[selected_law_type][0]
+    return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law_type]], law_type_id_dict[selected_law_type][0]
 
-# @app.callback(
-#     Output('dropdown4', 'options'),#-----Filters the Law ID options
-#     Output('dropdown4', 'value'),
-#     Input('dropdown2', 'value'), #----- Select the Law type
-#     Input('range_slider2', 'value')
+@app.callback(
+    Output('dropdown4', 'options'),#-----Filters the Law ID options
+    Output('dropdown4', 'value'),
+    Input('dropdown2', 'value'), #----- Select the Law type
+    #Input('range_slider2', 'value')
 
-# )
-# def set_law_options2(slider_range_values,selected_law_type):
-#     #Law Type --> Law ID Dictionary
-#     filtered = law_df[(law_df['Year']>=slider_range_values[0]) & (law_df['Year']<=slider_range_values[1])]
-#     law_type_id_dict = filtered.groupby('Law Class')['Law ID'].apply(list).to_dict()
+)
+#def set_law_options2(slider_range_values,selected_law_type):
+def set_law_options2(selected_law_type):
 
-#     return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law_type]], law_type_id_dict[selected_law_type][0]
+    #Law Type --> Law ID Dictionary
+    #filtered = law_df[(law_df['Year']>=slider_range_values[0]) & (law_df['Year']<=slider_range_values[1])]
+    #law_type_id_dict = filtered.groupby('Law Class')['Law ID'].apply(list).to_dict()
+    law_type_id_dict = law_df.groupby('Law Class')['Law ID'].apply(list).to_dict()
+
+    return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law_type]], law_type_id_dict[selected_law_type][0]
 
 
 
@@ -846,11 +866,9 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
 ) 
 
 def update_matrix(slider_range_values,dd2):#,state_choice):
-    filtered = nlp_law_df[(nlp_law_df['Year']>=slider_range_values[0]) & (nlp_law_df['Year']<=slider_range_values[1])]
+    filtered = law_df[(law_df['Year']>=slider_range_values[0]) & (law_df['Year']<=slider_range_values[1])]
     filtered = filtered[filtered['Law Class']==dd2]
-
-    #filtered = nlp_law_df[(nlp_law_df['Year']>=2000) & (nlp_law_df['Year']<=2010)]
-    #filtered = filtered[filtered['Effect']=="Restrictive"]
+    filtered = filtered[filtered['ST']!="DC"]
 
     #Step 1: Take content column and convert to a list
     lg_list = filtered['Content_cleaned'].tolist()
@@ -872,17 +890,6 @@ def update_matrix(slider_range_values,dd2):#,state_choice):
     mask = np.triu(np.ones_like(matrix, dtype=bool))
     triangle = matrix.mask(mask)
 
-    # fig = go.Figure()
-    # fig.add_trace(
-    #     go.Heatmap(
-    #         x = triangle.columns,
-    #         y = triangle.columns,
-    #         z = np.array(triangle),
-    #         text=triangle.values,
-    #         texttemplate='%{text:.2f}'
-    #     )
-    # )
-
     fig = px.imshow(
         triangle, 
         text_auto=True, 
@@ -891,15 +898,9 @@ def update_matrix(slider_range_values,dd2):#,state_choice):
         y=triangle.columns,
         template='plotly_dark',
         color_continuous_scale="Viridis",
-        # hover_data = {
-        #     "x":True,
-        #     "y":True,
-        #     "color":True,
-        # },
         labels={
             'color':'Cosine Similarity'
         },
-   
         zmin=0,
         zmax=1
 
@@ -921,18 +922,49 @@ def update_cards1(dd3,dd4):
     filtered = law_df[law_df['Law ID'].isin([dd3,dd4])]
     #filtered = law_df[law_df['Law ID'].isin(['AK1003','ME1005'])]
 
-    law_effect1 = filtered[filtered['Law ID']==dd3]['Effect'].values[0]
-    law_effect2 = filtered[filtered['Law ID']==dd4]['Effect'].values[0]
+    #Add in cluster before v after metrics here
+    filter_cluster = cluster_df[['Law ID','SuicidesB3','SuicidesA3','HomicidesB3','HomicidesA3']]
+    filter_cluster = cluster_df[cluster_df['Law ID'].isin([dd3,dd4])]
+    #filter_cluster = filter_cluster[filter_cluster['Law ID'].isin(['AK1003','ME1005'])]
+   
+    stats_df = pd.merge(
+        filtered,
+        filter_cluster,
+        how='left',
+        on=['Law ID']
+    )
 
+
+
+    law_effect1 = stats_df[stats_df['Law ID']==dd3]['Effect'].values[0]
+    law_effect2 = stats_df[stats_df['Law ID']==dd4]['Effect'].values[0]
+    
+    # law_year1 = round(stats_df[stats_df['Law ID']==dd3]['Year'].values[0])
+    # law_year2 = round(stats_df[stats_df['Law ID']==dd4]['Year'].values[0])
+    
+    law1_hom_before = stats_df[stats_df['Law ID']==dd3]['HomicidesB3'].values[0]
+    law1_sui_before = stats_df[stats_df['Law ID']==dd3]['SuicidesB3'].values[0]
+    law2_hom_before = stats_df[stats_df['Law ID']==dd4]['HomicidesB3'].values[0]
+    law2_sui_before = stats_df[stats_df['Law ID']==dd4]['SuicidesB3'].values[0]
+
+    law1_hom_after = stats_df[stats_df['Law ID']==dd3]['HomicidesA3'].values[0]
+    law1_sui_after = stats_df[stats_df['Law ID']==dd3]['SuicidesA3'].values[0]
+    law2_hom_after = stats_df[stats_df['Law ID']==dd4]['HomicidesA3'].values[0]
+    law2_sui_after = stats_df[stats_df['Law ID']==dd4]['SuicidesA3'].values[0]
+
+    law1_hom_change = round(((law1_hom_before - law1_hom_after)/law1_hom_before)*100,2)
+    law1_sui_change = round(((law1_sui_before - law1_sui_after)/law1_sui_before)*100,2)
+
+    law2_hom_change = round(((law2_hom_before - law2_hom_after)/law2_hom_before)*100,2)
+    law2_sui_change = round(((law2_sui_before - law2_sui_after)/law2_sui_before)*100,2)
 
     card4 = dbc.Card([
         dbc.CardBody([
-            html.P(f'Law #{dd3}'),
-            html.H6(f'This is a {law_effect1} law'),
+            html.P(f'Law #{dd3} passed in '),
+            html.H6(f'{law_effect1}'),
         ])
     ],
     style={'display': 'inline-block',
-           #'width': '20%',
            'text-align': 'center',
            'background-color': '#70747c',
            'color':'white',
@@ -942,12 +974,11 @@ def update_cards1(dd3,dd4):
 
     card5 = dbc.Card([
         dbc.CardBody([
-            html.P('3 Year Average Suicide Rate After Law Passed: XX'),
-            html.P('3 Year Average Homicide Rate After Law Passed: XX'),
+            html.P(f'Change in Suicide Rate After Law Passed: {law1_sui_change}%'),
+            html.P(f'Change in Homicide Rate After Law Passed: {law1_hom_change}%'),
         ])
     ],
     style={'display': 'inline-block',
-           #'width': '20%',
            'text-align': 'center',
            'background-color': '#70747c',
            'color':'white',
@@ -957,8 +988,8 @@ def update_cards1(dd3,dd4):
 
     card6 = dbc.Card([
         dbc.CardBody([
-            html.P(f'Law #{dd4}'),
-            html.H6(f'This is a {law_effect2} law'),
+            html.P(f'Law #{dd4} passed in '),
+            html.H6(f'{law_effect2}'),
         ])
     ],
     style={'display': 'inline-block',
@@ -973,12 +1004,11 @@ def update_cards1(dd3,dd4):
 
     card7 = dbc.Card([
         dbc.CardBody([
-            html.P('3 Year Average Suicide Rate After Law Passed: XX'),
-            html.P('3 Year Average Homicide Rate After Law Passed: XX'),
+            html.P(f'Change in Suicide Rate After Law Passed: {law2_sui_change}%'),
+            html.P(f'Change in Homicide Rate After Law Passed: {law2_hom_change}%')
         ])
     ],
     style={'display': 'inline-block',
-           #'width': '20%',
            'text-align': 'center',
            'background-color': '#70747c',
            'color':'white',
