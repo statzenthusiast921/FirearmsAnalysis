@@ -61,13 +61,16 @@ i1 = law_df.set_index(keys).index
 i2 = repealed_list.set_index(keys).index
 law_df = law_df[~i1.isin(i2)]
 
-#Clean up cluster dataset as needed
-# cluster_df.drop(cluster_df[cluster_df['SuicidesB3'] == 0].index, inplace=True)
-# cluster_df.drop(cluster_df[cluster_df['SuicidesA3'] == 0].index, inplace=True)
-# cluster_df.drop(cluster_df[cluster_df['HomicidesB3'] == 0].index, inplace=True)
-# cluster_df.drop(cluster_df[cluster_df['HomicidesA3'] == 0].index, inplace=True)
+#Law Type --> Law ID Dictionary
+law_type_id_dict = law_df.groupby('Law Class')['Law ID'].apply(list).to_dict()
 
-cluster_choices = ["Cluster 1","Cluster 2","Cluster 3","Cluster 4","Cluster 5"]
+#Clean up cluster dataset as needed
+cluster_df.drop(cluster_df[cluster_df['SuicidesB3'] == 0].index, inplace=True)
+cluster_df.drop(cluster_df[cluster_df['SuicidesA3'] == 0].index, inplace=True)
+cluster_df.drop(cluster_df[cluster_df['HomicidesB3'] == 0].index, inplace=True)
+cluster_df.drop(cluster_df[cluster_df['HomicidesA3'] == 0].index, inplace=True)
+
+cluster_choices = ["Cluster 1","Cluster 2","Cluster 3","Cluster 4"]
 
 # Year --> State Dictionary
 df_for_dict = cluster_df[['Year','State']]
@@ -278,24 +281,12 @@ app.layout = html.Div([
             children=[
                 dbc.Row([
                     dbc.Col([
-                        dcc.RangeSlider(
-                                    id='range_slider2',
-                                    min=1991,
-                                    max=2020,
-                                    step=1,
-                                    value=[1991, 2020],
-                                    allowCross=False,
-                                    pushable=2,
-                                    tooltip={"placement": "bottom", "always_visible": True}
-                                )
-                    ],width=6),
-                    dbc.Col([
                         dcc.Dropdown(
                             id='dropdown2',
                             options=[{'label': i, 'value': i} for i in law_type_choices],
                             value=law_type_choices[0],
                         )
-                    ],width=6)
+                    ],width=12)
 
                 ]),
                 dbc.Row([
@@ -743,14 +734,14 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
     data_scaled = scaler.fit_transform(not_states_fixed)
 
     #Defining the kmeans function with initialization as k-means++
-    kmeans = KMeans(n_clusters=6, init='k-means++')
+    kmeans = KMeans(n_clusters=6, init='k-means++',random_state=42)
 
     #Fitting the k means algorithm on scaled data
     kmeans.fit(data_scaled)
 
     SSE = []
     for cluster in range(1,20):
-        kmeans = KMeans(n_clusters = cluster, init='k-means++')
+        kmeans = KMeans(n_clusters = cluster, init='k-means++',random_state=42)
         kmeans.fit(data_scaled)
         SSE.append(kmeans.inertia_)
         
@@ -760,7 +751,7 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
 
     elbow = kl.elbow
 
-    kmeans = KMeans(n_clusters = elbow, init='k-means++')
+    kmeans = KMeans(n_clusters = elbow, init='k-means++',random_state=42)
     kmeans.fit(data_scaled)
     pred = kmeans.predict(data_scaled)
 
@@ -789,29 +780,56 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
 
     sortedX = X.sort_values(by='cluster',ascending=True)
     sortedX['cluster'] = sortedX['cluster'].astype('str')
+    sortedX['cluster_num'] = sortedX['cluster'].astype(int)
+
+    def assign_color(value):
+        float_value = float(value)
+        if float_value == 1:
+            return "rgba(108, 102, 137, 1)"
+        elif float_value == 2:
+            return "rgba(210, 215, 211, 1)"
+        elif float_value == 3:
+            return "rgba(238, 238, 238, 1)"
+        elif float_value == 4:
+            return "rgba(189, 195, 199, 1)"
+        elif float_value == 5:
+            return "rgba(236, 240, 241, 1)"
+        elif float_value == 6:
+            return "rgba(149, 165, 166, 1)"
+        else:
+            return "rgba(191, 191, 191, 1)"
 
     #sortedX.to_csv('test_X.csv', index=False)
-
+    sortedX['color'] = sortedX.apply(lambda x: assign_color(x["cluster_num"]), axis = 1)
+    sortedX['color'] = np.where(sortedX['cluster_num']==int(dd1[-1]),'rgba(46, 204, 113, 1)',sortedX['color'])
+    
     fig = px.scatter(
         sortedX,
         x="SuicidesA3", 
         y="HomicidesA3", 
-        color="cluster",
         hover_data = {
             "State":True,
             "Year":True,
             "SuicidesA3":True,
-            "HomicidesA3":True
+            "HomicidesA3":True,
+            "cluster":True
         },
+        labels={
+            'SuicidesA3':'3 Year Avg Suicide Rate',
+            'HomicidesA3':'3 Year Avg Homicide Rate',
+            'cluster':'Cluster'
+        },             
         template='plotly_dark',
-        color_discrete_map={
-                f"{dd1}": "white"
-        }
     )
-    fig.update_traces(marker=dict(size=10,
-                              line=dict(width=0.5,
-                                        color='white')),
-                  selector=dict(mode='markers'))
+    fig.update_traces(
+        marker=dict(
+            color = sortedX["color"],
+            size = 10,
+            line=dict(width=0.5,color='white')),
+        selector=dict(mode='markers')
+    )
+    fig.update_xaxes(title_text='Suicide Rate (3 Yr Avg)')
+    fig.update_yaxes(title_text='Homicide Rate (3 Yr Avg)')
    
 
             
@@ -824,50 +842,28 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
 @app.callback(
     Output('dropdown3', 'options'),#-----Filters the Law ID options
     Output('dropdown3', 'value'),
-    Input('dropdown2', 'value'), #----- Select the Law type
-    #Input('range_slider2', 'value')
-
+    Input('dropdown2', 'value') #----- Select the Law type
 )
 def set_law_options(selected_law_type):
-    #Law Type --> Law ID Dictionary
-    #filtered = law_df[(law_df['Year']>=slider_range_values[0]) & (law_df['Year']<=slider_range_values[1])]
-    #law_type_id_dict = filtered.groupby('Law Class')['Law ID'].apply(list).to_dict()
-    law_type_id_dict = law_df.groupby('Law Class')['Law ID'].apply(list).to_dict()
-
-    # filtered = law_df[(law_df['Year']>=2000) & (law_df['Year']<=2005)]
-    # law_type_id_dict = filtered.groupby('Law Class')['Law ID'].apply(list).to_dict()
-
     return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law_type]], law_type_id_dict[selected_law_type][0]
 
 @app.callback(
     Output('dropdown4', 'options'),#-----Filters the Law ID options
     Output('dropdown4', 'value'),
-    Input('dropdown2', 'value'), #----- Select the Law type
-    #Input('range_slider2', 'value')
-
+    Input('dropdown2', 'value') #----- Select the Law type
 )
-#def set_law_options2(slider_range_values,selected_law_type):
 def set_law_options2(selected_law_type):
-
-    #Law Type --> Law ID Dictionary
-    #filtered = law_df[(law_df['Year']>=slider_range_values[0]) & (law_df['Year']<=slider_range_values[1])]
-    #law_type_id_dict = filtered.groupby('Law Class')['Law ID'].apply(list).to_dict()
-    law_type_id_dict = law_df.groupby('Law Class')['Law ID'].apply(list).to_dict()
-
     return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law_type]], law_type_id_dict[selected_law_type][0]
-
 
 
 
 @app.callback(
     Output('cosine_matrix', 'figure'), 
-    Input('range_slider2', 'value'),
     Input('dropdown2','value')
 ) 
 
-def update_matrix(slider_range_values,dd2):#,state_choice):
-    filtered = law_df[(law_df['Year']>=slider_range_values[0]) & (law_df['Year']<=slider_range_values[1])]
-    filtered = filtered[filtered['Law Class']==dd2]
+def update_matrix(dd2):#,state_choice):
+    filtered = law_df[law_df['Law Class']==dd2]
     filtered = filtered[filtered['ST']!="DC"]
 
     #Step 1: Take content column and convert to a list
@@ -974,8 +970,8 @@ def update_cards1(dd3,dd4):
 
     card5 = dbc.Card([
         dbc.CardBody([
-            html.P(f'Change in Suicide Rate After Law Passed: {law1_sui_change}%'),
-            html.P(f'Change in Homicide Rate After Law Passed: {law1_hom_change}%'),
+            html.P(f'Suicide Rate ∆: {law1_sui_change}%'),
+            html.P(f'Homicide Rate ∆: {law1_hom_change}%'),
         ])
     ],
     style={'display': 'inline-block',
@@ -1004,8 +1000,8 @@ def update_cards1(dd3,dd4):
 
     card7 = dbc.Card([
         dbc.CardBody([
-            html.P(f'Change in Suicide Rate After Law Passed: {law2_sui_change}%'),
-            html.P(f'Change in Homicide Rate After Law Passed: {law2_hom_change}%')
+            html.P(f'Suicide Rate ∆: {law2_sui_change}%'),
+            html.P(f'Homicide Rate ∆: {law2_hom_change}%')
         ])
     ],
     style={'display': 'inline-block',
