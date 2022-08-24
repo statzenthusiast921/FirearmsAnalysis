@@ -4,6 +4,10 @@
 
 The purpose of this project is to analyze and find relationships between state-level firearms legislation and the firearm-related homicide and suicides rates by state and year. 
 
+### Link
+
+- COMING SOON
+
 ### Data
 
 The data used for this analysis included:
