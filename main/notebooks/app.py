@@ -121,8 +121,9 @@ app.layout = html.Div([
                    ],style={'text-decoration': 'underline'}),
                    html.Div([
                        html.P("This dashboard was created as a tool to: ",style={'color':'white'}),
-                       html.P("1.) find relationships between state-level firearms legislation and the firearm-related homicide and suicides rates by state and year.",style={'color':'white'}),
-                       html.P("2.) Understand the demographics of states with similar firearm-related homicide and suicide rates",style={'color':'white'}),
+                       html.P("1.) Understand the types of firearm laws passed in each state and over time",style={'color':'white'}),
+                       html.P("2.) Find relationships between state-level firearms legislation and the firearm-related homicide and suicides rates by state and year after the laws were passed.",style={'color':'white'}),
+                       html.P("3.) Determine the level of similarity between any two laws",style={'color':'white'}),
 
 
                        html.Br()
@@ -134,6 +135,10 @@ app.layout = html.Div([
                    html.Div([
                        html.P(['1.) ',html.A('RAND State Firearm Law Database',href='https://www.rand.org/pubs/tools/TLA243-2-v2.html',style={'color':'white'})],style={'color':'white'}),
                        html.P(['2.) ',html.A('RAND State-Level Estimates of Household Firearm Ownership',href='https://www.rand.org/pubs/tools/TL354.html',style={'color':'white'})],style={'color':'white'}),
+                       html.P(['3.) ',html.A('Firearm Related Deaths by State and Year',href='https://www.statefirearmlaws.org/states/')],style={'color':'white'}),
+                       html.P(['4.) ',html.A('Median Income',href='https://fred.stlouisfed.org/release/tables?rid=118&eid=259194')],style={'color':'white'}),
+                       html.P(['5.) ',html.A('Population',href='https://fred.stlouisfed.org/release/tables?rid=118&eid=259194')],style={'color':'white'}),
+                       html.P(['5.) ',html.A('Voting Histories',href='https://github.com/statzenthusiast921/US_Elections_Project/blob/main/Data/FullElectionsData.xlsx')],style={'color':'white'}),
 
                        html.Br()
                    ]),
@@ -141,7 +146,10 @@ app.layout = html.Div([
                        html.P(dcc.Markdown('''**What are the limitations of this data?**'''),style={'color':'white'}),
                    ],style={'text-decoration': 'underline'}),
                    html.Div([
-                       html.P("1.) Blah blah blah",style={'color':'white'}),
+                       html.P("1.) Comprehensive data for every measure used was not always available for every state or every year needed in this analysis.  Therefore, I only included data that covered the range of years 1991 through 2020.  The District of Colubmia was not included in the analysis of firearm-related homicide and suicide data due to the challenge of finding enough data covering all 30 years.",style={'color':'white'}),
+                       html.P("2.) ",style={'color':'white'}),
+                       html.P("3.) ",style={'color':'white'})
+
                    ])
 
 
@@ -259,13 +267,16 @@ app.layout = html.Div([
                 dbc.Row([
                     dbc.Col([
                         dbc.Card(id='card1')     
-                    ],width=4),
+                    ],width=3),
                     dbc.Col([
                         dbc.Card(id='card2')     
-                    ],width=4),
+                    ],width=3),
                     dbc.Col([
-                        dbc.Card(id='card3')     
-                    ],width=4)
+                        dbc.Card(id='card3a')     
+                    ],width=3),
+                    dbc.Col([
+                        dbc.Card(id='card3b')     
+                    ],width=3)
                  ]),
                  dbc.Row([
                     dbc.Col([
@@ -703,10 +714,17 @@ def update_area_chart_on_click(click_state):
         return timeline_fig
 #-----------------------------Tab #3: Clustering -----------------------------#
 
+    
+
+
 #Configure reactivity of cluster map controlled by range slider
 @app.callback(
     Output('cluster_map', 'figure'), 
     Output('dropdown1', 'options'),
+    Output('card1','children'),
+    Output('card2','children'),
+    Output('card3a','children'),
+    Output('card3b','children'),
     Input('range_slider', 'value'),
     Input('dropdown1','value')
     
@@ -791,13 +809,15 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
         elif float_value == 3:
             return "rgba(238, 238, 238, 1)"
         elif float_value == 4:
-            return "rgba(189, 195, 199, 1)"
+            return "rgba(108, 122, 137, 1)"
         elif float_value == 5:
             return "rgba(236, 240, 241, 1)"
         elif float_value == 6:
             return "rgba(149, 165, 166, 1)"
-        else:
+        elif float_value == 7:
             return "rgba(191, 191, 191, 1)"
+        else:
+            return "rgba(189, 195, 199, 1)"
 
     #sortedX.to_csv('test_X.csv', index=False)
     sortedX['color'] = sortedX.apply(lambda x: assign_color(x["cluster_num"]), axis = 1)
@@ -828,12 +848,86 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
             line=dict(width=0.5,color='white')),
         selector=dict(mode='markers')
     )
+    fig.update_layout(showlegend=True)
+
+    # fig.update_layout(
+    #     legend=dict(
+    #         yanchor="top",
+    #         y=0.99,
+    #         xanchor="left",
+    #         x=0.01
+    #     )
+    # )
     fig.update_xaxes(title_text='Suicide Rate (3 Yr Avg)')
     fig.update_yaxes(title_text='Homicide Rate (3 Yr Avg)')
-   
+    
+    #Filter for cards
+    sortedX['cluster_col'] = "Cluster " + sortedX['cluster'] 
+    card_filter = sortedX[sortedX['cluster_col']==dd1]
+    #card_filter = sortedX[sortedX['cluster_col']=='Cluster 1']
 
-            
-    return fig, [{'label':i,'value':i} for i in new_cluster_list]
+    stat1 = round(card_filter['Pop'].median())
+    stat2 = round(card_filter['Income'].median())
+    stat3a = round(card_filter['DEM_Perc'].median()*100,1)
+    stat3b = round(card_filter['GOP_Perc'].median()*100,1)
+
+    card1 = dbc.Card([
+        dbc.CardBody([
+            html.P('Median Population'),
+            html.H6(f'{stat1:,.0f}'),
+        ])
+    ],
+    style={'display': 'inline-block',
+           'text-align': 'center',
+           'background-color': '#70747c',
+           'color':'white',
+           'fontWeight': 'bold',
+           'fontSize':20},
+    outline=True)
+
+    card2 = dbc.Card([
+        dbc.CardBody([
+            html.P('Median Income'),
+            html.H6(f'${stat2:,.0f}')
+        ])
+    ],
+    style={'display': 'inline-block',
+           'text-align': 'center',
+           'background-color': '#70747c',
+           'color':'white',
+           'fontWeight': 'bold',
+           'fontSize':20},
+    outline=True)
+
+    card3a = dbc.Card([
+        dbc.CardBody([
+            html.P('Median DEM Vote %'),
+            html.H6(f'{stat3a}%'),
+        ])
+    ],
+    style={'display': 'inline-block',
+           'text-align': 'center',
+           'background-color': '#70747c',
+           'color':'white',
+           'fontWeight': 'bold',
+           'fontSize':20},
+    outline=True)
+
+    card3b = dbc.Card([
+        dbc.CardBody([
+            html.P('Median GOP Vote %'),
+            html.H6(f'{stat3b}%'),
+        ])
+    ],
+    style={'display': 'inline-block',
+           'text-align': 'center',
+           'background-color': '#70747c',
+           'color':'white',
+           'fontWeight': 'bold',
+           'fontSize':20},
+    outline=True)
+
+    return fig, [{'label':i,'value':i} for i in new_cluster_list], card1, card2, card3a, card3b
     
 
 #-----------------------------Tab #4: Cosine Similarity Matrix for Law Types -----------------------------#
