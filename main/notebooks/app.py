@@ -14,6 +14,7 @@ from sklearn.cluster import KMeans
 from sklearn.impute import KNNImputer
 import warnings
 from kneed import KneeLocator
+from dash import dash_table as dt
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
@@ -80,7 +81,6 @@ year_state_dict_sorted = {l: sorted(m) for l, m in year_state_dict.items()} #sor
 
 
 
-
 tabs_styles = {
     'height': '44px'
 }
@@ -109,7 +109,7 @@ app.layout = html.Div([
     dcc.Tabs([
 
 #Tab #1 --> Welcome Page
-        dcc.Tab(label='Welcome',value='tab-1',style=tab_style, selected_style=tab_selected_style,
+        dcc.Tab(label='What is this project about?',value='tab-1',style=tab_style, selected_style=tab_selected_style,
                children=[
                    html.Div([
                        html.H1(dcc.Markdown('''**Firearms Analysis Dashboard**''')),
@@ -297,42 +297,106 @@ app.layout = html.Div([
                             options=[{'label': i, 'value': i} for i in law_type_choices],
                             value=law_type_choices[0],
                         )
-                    ],width=12)
-
-                ]),
-                dbc.Row([
+                    ],width=6),
                     dbc.Col([
-                        dcc.Graph(id='cosine_matrix')
-                    ])
-                ]),
-                dbc.Row([
-                      dbc.Col([
                         dcc.Dropdown(
                             id='dropdown3',
                             options=[{'label': i, 'value': i} for i in law_list_choices],
                             value=law_list_choices[0],
                         )
-                    ],width=6),
+                    ],width=3),
                       dbc.Col([
                         dcc.Dropdown(
                             id='dropdown4',
                             options=[{'label': i, 'value': i} for i in law_list_choices],
-                            value=law_list_choices[0],
+                            value=law_list_choices[1],
                         )
-                    ],width=6)
+                    ],width=3)
                 ]),
                 dbc.Row([
                     dbc.Col([
-                        dbc.Card(id='card4'),
-                        dbc.Card(id='card5')
+                        dcc.Graph(id='cosine_matrix')
                     ],width=6),
                     dbc.Col([
-                        dbc.Card(id='card6'),
-                        dbc.Card(id='card7')
+                        dcc.RadioItems(
+                            id='radio2',
+                            options=[
+                                {'label': 'Homicides', 'value': 'Homicides'},
+                                {'label': 'Suicides', 'value': 'Suicides'}
+                            ],
+                            value='Homicides',
+                            labelStyle={'display': 'block','text-align': 'left'}
+
+                        ),
+                        dcc.Graph(id='slope_graph')
+                    ],width=6),
+                ]),
+                #Buttons for More Info on 2 Laws
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            dbc.Button(id='open2',block=True,size='lg'),
+                        ],className="d-grid gap-2"),
+                        #Button for Law #1 Details
+                        html.Div([
+                            dbc.Modal(
+                                children=[
+                                    dbc.ModalHeader("Law Details"),
+                                    dbc.ModalBody(
+                                        children=[
+                                            html.P(
+                                                id="table1",
+                                                style={'overflow':'auto','maxHeight':'400px'}
+                                            )
+                                        ]
+                                    ),
+                                    dbc.ModalFooter(
+                                        dbc.Button("Close", id="close2")
+                                    ),
+                                ],id="modal2", size="xl",scrollable=True
+                            )
+                        ]),
+                        dbc.Card(id='card4')
+                    ],width=6),
+                    dbc.Col([
+                        html.Div([
+                            dbc.Button(id='open3',block=True,size='lg'),
+                        ],className="d-grid gap-2"),
+                        #Button for Law #2 Details
+                        html.Div([
+                            dbc.Modal(
+                                children=[
+                                    dbc.ModalHeader("Law Details"),
+                                    dbc.ModalBody(
+                                        children=[
+                                            html.P(
+                                                id="table2",
+                                                style={'overflow':'auto','maxHeight':'400px'}
+                                            )
+                                        ]
+                                    ),
+                                    dbc.ModalFooter(
+                                        dbc.Button("Close", id="close3")
+                                    ),
+                                ],id="modal3", size="xl",scrollable=True
+                            )
+                        ]),
+                        dbc.Card(id='card5')
                     ],width=6)
                 ])
             ]
+        ),
+#Tab #5 --> Predicting Suicide and Homicide using text
+
+        dcc.Tab(label='Prediction',value='tab-5',style=tab_style, selected_style=tab_selected_style,
+            children=[
+                dbc.Row([
+                    dbc.Col([
+                    ])
+                ])
+            ]
         )
+
 
     ])
 ])
@@ -359,9 +423,13 @@ def render_content(tab):
         return html.Div([
             html.H3('Tab content 4')
         ])
+    elif tab == 'tab-5':
+        return html.Div([
+            html.H3('Tab content 5')
+        ])
 
 
-#------------------- TAB #2 -------------------#
+#-------------------------- Tab #2: Descriptive Analysis on Laws --------------------------#
 
 #Configure reactivity for changing choropleth state map
 @app.callback(
@@ -800,33 +868,37 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
     sortedX['cluster'] = sortedX['cluster'].astype('str')
     sortedX['cluster_num'] = sortedX['cluster'].astype(int)
 
-    def assign_color(value):
-        float_value = float(value)
-        if float_value == 1:
-            return "rgba(108, 102, 137, 1)"
-        elif float_value == 2:
-            return "rgba(210, 215, 211, 1)"
-        elif float_value == 3:
-            return "rgba(238, 238, 238, 1)"
-        elif float_value == 4:
-            return "rgba(108, 122, 137, 1)"
-        elif float_value == 5:
-            return "rgba(236, 240, 241, 1)"
-        elif float_value == 6:
-            return "rgba(149, 165, 166, 1)"
-        elif float_value == 7:
-            return "rgba(191, 191, 191, 1)"
-        else:
-            return "rgba(189, 195, 199, 1)"
+
+
+
+    # def assign_color(value):
+    #     float_value = float(value)
+    #     if float_value >= 1:
+    #         return "rgba(108, 102, 137, 1)"
+    #     elif float_value == 2:
+    #         return "rgba(210, 215, 211, 1)"
+    #     elif float_value == 3:
+    #         return "rgba(238, 238, 238, 1)"
+    #     elif float_value == 4:
+    #         return "rgba(108, 122, 137, 1)"
+    #     elif float_value == 5:
+    #         return "rgba(236, 240, 241, 1)"
+    #     elif float_value == 6:
+    #         return "rgba(149, 165, 166, 1)"
+    #     elif float_value == 7:
+    #         return "rgba(191, 191, 191, 1)"
+    #     else:
+    #         return "rgba(189, 195, 199, 1)"
 
     #sortedX.to_csv('test_X.csv', index=False)
-    sortedX['color'] = sortedX.apply(lambda x: assign_color(x["cluster_num"]), axis = 1)
-    sortedX['color'] = np.where(sortedX['cluster_num']==int(dd1[-1]),'rgba(46, 204, 113, 1)',sortedX['color'])
+    #sortedX['color'] = sortedX.apply(lambda x: assign_color(x["cluster_num"]), axis = 1)
+    sortedX['color'] = np.where(sortedX['cluster_num']==int(dd1[-1]),'rgba(46, 204, 113, 1)','rgba(108, 102, 137, 1)')
     
     fig = px.scatter(
         sortedX,
         x="SuicidesA3", 
         y="HomicidesA3", 
+        #hover_name = "cluster",
         hover_data = {
             "State":True,
             "Year":True,
@@ -835,8 +907,8 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
             "cluster":True
         },
         labels={
-            'SuicidesA3':'3 Year Avg Suicide Rate',
-            'HomicidesA3':'3 Year Avg Homicide Rate',
+            'SuicidesA3':'Avg Suicide Rate',
+            'HomicidesA3':'Avg Homicide Rate',
             'cluster':'Cluster'
         },             
         template='plotly_dark',
@@ -858,8 +930,8 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
     #         x=0.01
     #     )
     # )
-    fig.update_xaxes(title_text='Suicide Rate (3 Yr Avg)')
-    fig.update_yaxes(title_text='Homicide Rate (3 Yr Avg)')
+    fig.update_xaxes(title_text='Suicide Rate (3 Yr Avg) Post Law Passing')
+    fig.update_yaxes(title_text='Homicide Rate (3 Yr Avg) Post Law Passing')
     
     #Filter for cards
     sortedX['cluster_col'] = "Cluster " + sortedX['cluster'] 
@@ -947,7 +1019,7 @@ def set_law_options(selected_law_type):
     Input('dropdown2', 'value') #----- Select the Law type
 )
 def set_law_options2(selected_law_type):
-    return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law_type]], law_type_id_dict[selected_law_type][0]
+    return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law_type]], law_type_id_dict[selected_law_type][1]
 
 
 
@@ -997,20 +1069,18 @@ def update_matrix(dd2):#,state_choice):
     )
 
     return fig
-    
-# #Configure reactivity of cards based on dynamic dropdown box
-@app.callback(
-    Output('card4','children'),
-    Output('card5','children'),
-    Output('card6','children'),
-    Output('card7','children'),
-    Input('dropdown3', 'value'),
-    Input('dropdown4', 'value')
-) 
 
-def update_cards1(dd3,dd4):
+# Configure reactivity of slope graph
+@app.callback(
+    Output('slope_graph','figure'),
+    Input('dropdown3', 'value'),
+    Input('dropdown4', 'value'),
+    Input('radio2','value')
+) 
+def slope_graph(dd3,dd4,radio2):
     filtered = law_df[law_df['Law ID'].isin([dd3,dd4])]
     #filtered = law_df[law_df['Law ID'].isin(['AK1003','ME1005'])]
+
 
     #Add in cluster before v after metrics here
     filter_cluster = cluster_df[['Law ID','SuicidesB3','SuicidesA3','HomicidesB3','HomicidesA3']]
@@ -1019,19 +1089,19 @@ def update_cards1(dd3,dd4):
    
     stats_df = pd.merge(
         filtered,
+        #law_df,
         filter_cluster,
         how='left',
         on=['Law ID']
     )
+    stats_df = stats_df.rename(
+        columns={
+            'Year_x': 'Year',
+            'State_x':'State'
+        }
+    )
 
 
-
-    law_effect1 = stats_df[stats_df['Law ID']==dd3]['Effect'].values[0]
-    law_effect2 = stats_df[stats_df['Law ID']==dd4]['Effect'].values[0]
-    
-    # law_year1 = round(stats_df[stats_df['Law ID']==dd3]['Year'].values[0])
-    # law_year2 = round(stats_df[stats_df['Law ID']==dd4]['Year'].values[0])
-    
     law1_hom_before = stats_df[stats_df['Law ID']==dd3]['HomicidesB3'].values[0]
     law1_sui_before = stats_df[stats_df['Law ID']==dd3]['SuicidesB3'].values[0]
     law2_hom_before = stats_df[stats_df['Law ID']==dd4]['HomicidesB3'].values[0]
@@ -1048,65 +1118,182 @@ def update_cards1(dd3,dd4):
     law2_hom_change = round(((law2_hom_before - law2_hom_after)/law2_hom_before)*100,2)
     law2_sui_change = round(((law2_sui_before - law2_sui_after)/law2_sui_before)*100,2)
 
-    card4 = dbc.Card([
-        dbc.CardBody([
-            html.P(f'Law #{dd3} passed in '),
-            html.H6(f'{law_effect1}'),
-        ])
-    ],
-    style={'display': 'inline-block',
-           'text-align': 'center',
-           'background-color': '#70747c',
-           'color':'white',
-           'fontWeight': 'bold',
-           'fontSize':20},
-    outline=True)
+    if "Homicides" in radio2:
+        fig = go.Figure(
+            go.Scatter(
+                x=[0, 1], 
+                y=[law1_hom_before, law1_hom_after], 
+                mode='lines+markers',#+text', 
+                name=f'{dd3}',
+                #text=[f'{law1_hom_change}%'], 
+                #textposition=['middle center']
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[0,1], 
+                y=[law2_hom_before,law2_hom_after],
+                mode='lines+markers',
+                name=f'{dd4}'
+            )
+        ) 
+        fig.update_layout(
+            template='plotly_dark',
+            hovermode = 'x'
+        )
+        fig.update_yaxes(range=[0, 15])
 
-    card5 = dbc.Card([
-        dbc.CardBody([
-            html.P(f'Suicide Rate ∆: {law1_sui_change}%'),
-            html.P(f'Homicide Rate ∆: {law1_hom_change}%'),
-        ])
-    ],
-    style={'display': 'inline-block',
-           'text-align': 'center',
-           'background-color': '#70747c',
-           'color':'white',
-           'fontWeight': 'bold',
-           'fontSize':20},
-    outline=True)
+        return fig
+    else:
+        fig = go.Figure(
+            go.Scatter(
+                x=[0, 1], 
+                y=[law1_sui_before, law1_sui_after], 
+                mode='lines+markers', 
+                name=f'{dd3}'
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[0,1], 
+                y=[law2_sui_before,law2_sui_after],
+                mode='lines+markers',
+                name=f'{dd4}'
+            )
+        ) 
+        fig.update_layout(
+            template='plotly_dark',
+            hovermode = 'x'
+        )
+        fig.update_yaxes(range=[0, 15])
 
-    card6 = dbc.Card([
-        dbc.CardBody([
-            html.P(f'Law #{dd4} passed in '),
-            html.H6(f'{law_effect2}'),
-        ])
-    ],
-    style={'display': 'inline-block',
-           #'width': '20%',
-           'text-align': 'center',
-           'background-color': '#70747c',
-           'color':'white',
-           'fontWeight': 'bold',
-           'fontSize':20},
-    outline=True)
+        return fig
 
 
-    card7 = dbc.Card([
-        dbc.CardBody([
-            html.P(f'Suicide Rate ∆: {law2_sui_change}%'),
-            html.P(f'Homicide Rate ∆: {law2_hom_change}%')
-        ])
-    ],
-    style={'display': 'inline-block',
-           'text-align': 'center',
-           'background-color': '#70747c',
-           'color':'white',
-           'fontWeight': 'bold',
-           'fontSize':20},
-    outline=True)
+# # #Configure reactivity of cards based on dynamic dropdown box
+# @app.callback(
+#     Output('open2','children'),
+#     Output('open3','children'),
+#     Output('card4','children'),
+#     Output('card5','children'),
+#     Output('table1','children'),
+#     Output('table2','children'),
+#     Input('dropdown3', 'value'),
+#     Input('dropdown4', 'value')
+# ) 
 
-    return card4, card5, card6, card7
+# def update_cards1(dd3,dd4):
+#     filtered = law_df[law_df['Law ID'].isin([dd3,dd4])]
+#     #filtered = law_df[law_df['Law ID'].isin(['AK1003','ME1005'])]
+
+#     #Add in cluster before v after metrics here
+#     filter_cluster = cluster_df[['Law ID','SuicidesB3','SuicidesA3','HomicidesB3','HomicidesA3']]
+#     filter_cluster = cluster_df[cluster_df['Law ID'].isin([dd3,dd4])]
+#     #filter_cluster = filter_cluster[filter_cluster['Law ID'].isin(['AK1003','ME1005'])]
+   
+#     stats_df = pd.merge(
+#         filtered,
+#         filter_cluster,
+#         how='left',
+#         on=['Law ID']
+#     )
+#     stats_df = stats_df.rename(
+#         columns={
+#             'Year_x': 'Year',
+#             'State_x':'State'
+#         }
+#     )
+
+#     law1_hom_before = stats_df[stats_df['Law ID']==dd3]['HomicidesB3'].values[0]
+#     law1_sui_before = stats_df[stats_df['Law ID']==dd3]['SuicidesB3'].values[0]
+#     law2_hom_before = stats_df[stats_df['Law ID']==dd4]['HomicidesB3'].values[0]
+#     law2_sui_before = stats_df[stats_df['Law ID']==dd4]['SuicidesB3'].values[0]
+
+#     law1_hom_after = stats_df[stats_df['Law ID']==dd3]['HomicidesA3'].values[0]
+#     law1_sui_after = stats_df[stats_df['Law ID']==dd3]['SuicidesA3'].values[0]
+#     law2_hom_after = stats_df[stats_df['Law ID']==dd4]['HomicidesA3'].values[0]
+#     law2_sui_after = stats_df[stats_df['Law ID']==dd4]['SuicidesA3'].values[0]
+
+#     law1_hom_change = round(((law1_hom_before - law1_hom_after)/law1_hom_before)*100,2)
+#     law1_sui_change = round(((law1_sui_before - law1_sui_after)/law1_sui_before)*100,2)
+
+#     law2_hom_change = round(((law2_hom_before - law2_hom_after)/law2_hom_before)*100,2)
+#     law2_sui_change = round(((law2_sui_before - law2_sui_after)/law2_sui_before)*100,2)
+
+#     law_button1 = dbc.Button(
+#         f"Click Here for More Info on Law #{dd3}",
+#         block=True,
+#         size='lg'
+#     )
+
+#     card4 = dbc.Card([
+#         dbc.CardBody([
+#             html.P(f'Suicide Rate ∆: {law1_sui_change}%'),
+#             html.P(f'Homicide Rate ∆: {law1_hom_change}%'),
+#         ])
+#     ],
+#     style={'display': 'inline-block',
+#            'text-align': 'center',
+#            'background-color': '#70747c',
+#            'color':'white',
+#            'fontWeight': 'bold',
+#            'fontSize':20},
+#     outline=True)
+
+#     law_button2 = dbc.Button(
+#         f"Click Here for More Info on Law #{dd4}",
+#         block=True,
+#         size='lg'
+#     )
+
+
+#     card5 = dbc.Card([
+#         dbc.CardBody([
+#             html.P(f'Suicide Rate ∆: {law2_sui_change}%'),
+#             html.P(f'Homicide Rate ∆: {law2_hom_change}%')
+#         ])
+#     ],
+#     style={'display': 'inline-block',
+#            'text-align': 'center',
+#            'background-color': '#70747c',
+#            'color':'white',
+#            'fontWeight': 'bold',
+#            'fontSize':20},
+#     outline=True)
+
+#     law1_df = stats_df[stats_df['Law ID']==dd3]
+#     law2_df = stats_df[stats_df['Law ID']==dd4]
+
+#     law1_df = law1_df[['Law ID','State','Year','Law Class','Effect','Content']]
+#     law2_df = law2_df[['Law ID','State','Year','Law Class','Effect','Content']]
+
+
+#     law_table1 = dt.DataTable(
+#         columns=[{"name": i, "id": i} for i in law1_df.columns],
+#         data=law1_df.to_dict('records'),
+#         style_data={
+#             'whiteSpace': 'normal',
+#             'height': '150px',
+#             'color':'black',
+#             'backgroundColor': 'white'
+#         },
+#         style_cell={'textAlign': 'left'}
+#     )
+
+
+#     law_table2 = dt.DataTable(
+#         columns=[{"name": i, "id": i} for i in law2_df.columns],
+#         data=law2_df.to_dict('records'),
+#         style_data={
+#             'whiteSpace': 'normal',
+#             'height': '150px',
+#             'color':'black',
+#             'backgroundColor': 'white'
+#         },
+#         style_cell={'textAlign': 'left'}
+#     )
+
+#     return law_button1, law_button2, card4, card5, law_table1, law_table2
     
 
 @app.callback(
@@ -1117,6 +1304,30 @@ def update_cards1(dd3,dd4):
 )
 
 def toggle_modal1(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
+@app.callback(
+    Output("modal2", "is_open"),
+    Input("open2", "n_clicks"), 
+    Input("close2", "n_clicks"),
+    State("modal2", "is_open")
+)
+
+def toggle_modal2(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
+@app.callback(
+    Output("modal3", "is_open"),
+    Input("open3", "n_clicks"), 
+    Input("close3", "n_clicks"),
+    State("modal3", "is_open")
+)
+
+def toggle_modal3(n1, n2, is_open):
     if n1 or n2:
         return not is_open
     return is_open
