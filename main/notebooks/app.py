@@ -331,11 +331,11 @@ app.layout = html.Div([
                         dcc.Graph(id='slope_graph')
                     ],width=6),
                 ]),
-                #Buttons for More Info on 2 Laws
+                #----------Buttons for More Info on 2 Laws----------#
                 dbc.Row([
                     dbc.Col([
                         html.Div([
-                            dbc.Button(id='open2',block=True,size='lg'),
+                            dbc.Button("Click Here for More Details",id='open2',block=True,size='lg'),
                         ],className="d-grid gap-2"),
                         #Button for Law #1 Details
                         html.Div([
@@ -356,33 +356,7 @@ app.layout = html.Div([
                                 ],id="modal2", size="xl",scrollable=True
                             )
                         ]),
-                        dbc.Card(id='card4')
-                    ],width=6),
-                    dbc.Col([
-                        html.Div([
-                            dbc.Button(id='open3',block=True,size='lg'),
-                        ],className="d-grid gap-2"),
-                        #Button for Law #2 Details
-                        html.Div([
-                            dbc.Modal(
-                                children=[
-                                    dbc.ModalHeader("Law Details"),
-                                    dbc.ModalBody(
-                                        children=[
-                                            html.P(
-                                                id="table2",
-                                                style={'overflow':'auto','maxHeight':'400px'}
-                                            )
-                                        ]
-                                    ),
-                                    dbc.ModalFooter(
-                                        dbc.Button("Close", id="close3")
-                                    ),
-                                ],id="modal3", size="xl",scrollable=True
-                            )
-                        ]),
-                        dbc.Card(id='card5')
-                    ],width=6)
+                    ],width=12)
                 ])
             ]
         ),
@@ -1075,22 +1049,24 @@ def update_matrix(dd2):#,state_choice):
     Output('slope_graph','figure'),
     Input('dropdown3', 'value'),
     Input('dropdown4', 'value'),
+    #Input('dropdown2','value'),
     Input('radio2','value')
 ) 
-def slope_graph(dd3,dd4,radio2):
+def slope_graph(dd3,dd4,radio2):#,dd2):
     filtered = law_df[law_df['Law ID'].isin([dd3,dd4])]
     #filtered = law_df[law_df['Law ID'].isin(['AK1003','ME1005'])]
 
 
     #Add in cluster before v after metrics here
     filter_cluster = cluster_df[['Law ID','SuicidesB3','SuicidesA3','HomicidesB3','HomicidesA3']]
-    filter_cluster = cluster_df[cluster_df['Law ID'].isin([dd3,dd4])]
+    filter_cluster2 = cluster_df[cluster_df['Law ID'].isin([dd3,dd4])]
     #filter_cluster = filter_cluster[filter_cluster['Law ID'].isin(['AK1003','ME1005'])]
    
+    #Join 2 law df with cluster metrics
     stats_df = pd.merge(
         filtered,
         #law_df,
-        filter_cluster,
+        filter_cluster2,
         how='left',
         on=['Law ID']
     )
@@ -1101,32 +1077,57 @@ def slope_graph(dd3,dd4,radio2):
         }
     )
 
+    # #Create df to make dynamic upper y axis range that is consistent with Law Class
+    # y_axis_max_df = law_df[law_df['Law Class']==dd2]
+    # y_stats_df = pd.merge(
+    #     y_axis_max_df,
+    #     filter_cluster,
+    #     how='left',
+    #     on=['Law ID']
+    # )
+    # y_stats_df = y_stats_df.rename(
+    #     columns={
+    #         'Year_x': 'Year',
+    #         'State_x':'State'
+    #     }
+    # )
+    #y_axis_max_df = law_df[law_df['Law Class']=="registration"]
+    # y_max_hom = max(y_stats_df['HomicidesB3'].max(),y_stats_df['HomicidesA3'].max())
+    # y_max_hom = round(y_max_hom + 1,0)
 
-    law1_hom_before = stats_df[stats_df['Law ID']==dd3]['HomicidesB3'].values[0]
-    law1_sui_before = stats_df[stats_df['Law ID']==dd3]['SuicidesB3'].values[0]
-    law2_hom_before = stats_df[stats_df['Law ID']==dd4]['HomicidesB3'].values[0]
-    law2_sui_before = stats_df[stats_df['Law ID']==dd4]['SuicidesB3'].values[0]
+    # y_max_sui = max(y_stats_df['SuicidesB3'].max(),y_stats_df['SuicidesA3'].max())
+    # y_max_sui = round(y_max_sui + 1,0)
 
-    law1_hom_after = stats_df[stats_df['Law ID']==dd3]['HomicidesA3'].values[0]
-    law1_sui_after = stats_df[stats_df['Law ID']==dd3]['SuicidesA3'].values[0]
-    law2_hom_after = stats_df[stats_df['Law ID']==dd4]['HomicidesA3'].values[0]
-    law2_sui_after = stats_df[stats_df['Law ID']==dd4]['SuicidesA3'].values[0]
+    law1_hom_before = round(stats_df[stats_df['Law ID']==dd3]['HomicidesB3'].values[0],2)
+    law1_sui_before = round(stats_df[stats_df['Law ID']==dd3]['SuicidesB3'].values[0],2)
+    law2_hom_before = round(stats_df[stats_df['Law ID']==dd4]['HomicidesB3'].values[0],2)
+    law2_sui_before = round(stats_df[stats_df['Law ID']==dd4]['SuicidesB3'].values[0],2)
 
-    law1_hom_change = round(((law1_hom_before - law1_hom_after)/law1_hom_before)*100,2)
-    law1_sui_change = round(((law1_sui_before - law1_sui_after)/law1_sui_before)*100,2)
+    law1_hom_after = round(stats_df[stats_df['Law ID']==dd3]['HomicidesA3'].values[0],2)
+    law1_sui_after = round(stats_df[stats_df['Law ID']==dd3]['SuicidesA3'].values[0],2)
+    law2_hom_after = round(stats_df[stats_df['Law ID']==dd4]['HomicidesA3'].values[0],2)
+    law2_sui_after = round(stats_df[stats_df['Law ID']==dd4]['SuicidesA3'].values[0],2)
 
-    law2_hom_change = round(((law2_hom_before - law2_hom_after)/law2_hom_before)*100,2)
-    law2_sui_change = round(((law2_sui_before - law2_sui_after)/law2_sui_before)*100,2)
+    law1_hom_change = round(((law1_hom_before - law1_hom_after)/law1_hom_before)*100,1)*-1
+    law1_sui_change = round(((law1_sui_before - law1_sui_after)/law1_sui_before)*100,1)*-1
+
+    law2_hom_change = round(((law2_hom_before - law2_hom_after)/law2_hom_before)*100,1)*-1
+    law2_sui_change = round(((law2_sui_before - law2_sui_after)/law2_sui_before)*100,1)*-1
+
+
+    #big_change = np.where(law1_hom_change>law2_hom_change,1,0)
+    # num1 = -45.3
+    # num2 = 9.32
+    # arrow_placement1 = np.where(law1_hom_change < law2_hom_change , 1, 0).tolist()
+    # arrow_placement2 = np.where(law1_sui_change < law2_sui_change , 1, 0).tolist()
 
     if "Homicides" in radio2:
         fig = go.Figure(
             go.Scatter(
                 x=[0, 1], 
                 y=[law1_hom_before, law1_hom_after], 
-                mode='lines+markers',#+text', 
-                name=f'{dd3}',
-                #text=[f'{law1_hom_change}%'], 
-                #textposition=['middle center']
+                mode='lines+markers', 
+                name=f'{dd3}'
             )
         )
         fig.add_trace(
@@ -1141,7 +1142,9 @@ def slope_graph(dd3,dd4,radio2):
             template='plotly_dark',
             hovermode = 'x'
         )
-        fig.update_yaxes(range=[0, 15])
+        fig.update_yaxes(range=[0, 20])
+        #fig.add_annotation(text=f"{law1_hom_change}% ∆", x=0.5, y=(law1_hom_before+law1_hom_after)/2, arrowhead=1, showarrow=True)
+        #fig.add_annotation(text=f"{law2_hom_change}% ∆", x=0.5, y=(law2_hom_before+law2_hom_after)/2, arrowhead=1, showarrow=True)
 
         return fig
     else:
@@ -1165,135 +1168,59 @@ def slope_graph(dd3,dd4,radio2):
             template='plotly_dark',
             hovermode = 'x'
         )
-        fig.update_yaxes(range=[0, 15])
+        fig.update_yaxes(range=[0, 20])
+        #fig.add_annotation(text=f"{law1_sui_change}% ∆", x=0.5, y=(law1_sui_before+law1_hom_after)/2, arrowhead=1, showarrow=True, ay=45)
+        #fig.add_annotation(text=f"{law2_sui_change}% ∆", x=0.5, y=(law2_sui_before+law2_hom_after)/2, arrowhead=1, showarrow=True)
+
 
         return fig
 
 
-# # #Configure reactivity of cards based on dynamic dropdown box
-# @app.callback(
-#     Output('open2','children'),
-#     Output('open3','children'),
-#     Output('card4','children'),
-#     Output('card5','children'),
-#     Output('table1','children'),
-#     Output('table2','children'),
-#     Input('dropdown3', 'value'),
-#     Input('dropdown4', 'value')
-# ) 
+# #Configure reactivity of cards based on dynamic dropdown box
+@app.callback(
+    Output('table1','children'),
+    Input('dropdown3', 'value'),
+    Input('dropdown4', 'value')
+) 
 
-# def update_cards1(dd3,dd4):
-#     filtered = law_df[law_df['Law ID'].isin([dd3,dd4])]
-#     #filtered = law_df[law_df['Law ID'].isin(['AK1003','ME1005'])]
+def update_cards1(dd3,dd4):
+    filtered = law_df[law_df['Law ID'].isin([dd3,dd4])]
+    #filtered = law_df[law_df['Law ID'].isin(['AK1003','ME1005'])]
 
-#     #Add in cluster before v after metrics here
-#     filter_cluster = cluster_df[['Law ID','SuicidesB3','SuicidesA3','HomicidesB3','HomicidesA3']]
-#     filter_cluster = cluster_df[cluster_df['Law ID'].isin([dd3,dd4])]
-#     #filter_cluster = filter_cluster[filter_cluster['Law ID'].isin(['AK1003','ME1005'])]
+    #Add in cluster before v after metrics here
+    filter_cluster = cluster_df[['Law ID','SuicidesB3','SuicidesA3','HomicidesB3','HomicidesA3']]
+    filter_cluster = cluster_df[cluster_df['Law ID'].isin([dd3,dd4])]
    
-#     stats_df = pd.merge(
-#         filtered,
-#         filter_cluster,
-#         how='left',
-#         on=['Law ID']
-#     )
-#     stats_df = stats_df.rename(
-#         columns={
-#             'Year_x': 'Year',
-#             'State_x':'State'
-#         }
-#     )
+    stats_df = pd.merge(
+        filtered,
+        filter_cluster,
+        how='left',
+        on=['Law ID']
+    )
+    stats_df = stats_df.rename(
+        columns={
+            'Year_x': 'Year',
+            'State_x':'State'
+        }
+    )
 
-#     law1_hom_before = stats_df[stats_df['Law ID']==dd3]['HomicidesB3'].values[0]
-#     law1_sui_before = stats_df[stats_df['Law ID']==dd3]['SuicidesB3'].values[0]
-#     law2_hom_before = stats_df[stats_df['Law ID']==dd4]['HomicidesB3'].values[0]
-#     law2_sui_before = stats_df[stats_df['Law ID']==dd4]['SuicidesB3'].values[0]
-
-#     law1_hom_after = stats_df[stats_df['Law ID']==dd3]['HomicidesA3'].values[0]
-#     law1_sui_after = stats_df[stats_df['Law ID']==dd3]['SuicidesA3'].values[0]
-#     law2_hom_after = stats_df[stats_df['Law ID']==dd4]['HomicidesA3'].values[0]
-#     law2_sui_after = stats_df[stats_df['Law ID']==dd4]['SuicidesA3'].values[0]
-
-#     law1_hom_change = round(((law1_hom_before - law1_hom_after)/law1_hom_before)*100,2)
-#     law1_sui_change = round(((law1_sui_before - law1_sui_after)/law1_sui_before)*100,2)
-
-#     law2_hom_change = round(((law2_hom_before - law2_hom_after)/law2_hom_before)*100,2)
-#     law2_sui_change = round(((law2_sui_before - law2_sui_after)/law2_sui_before)*100,2)
-
-#     law_button1 = dbc.Button(
-#         f"Click Here for More Info on Law #{dd3}",
-#         block=True,
-#         size='lg'
-#     )
-
-#     card4 = dbc.Card([
-#         dbc.CardBody([
-#             html.P(f'Suicide Rate ∆: {law1_sui_change}%'),
-#             html.P(f'Homicide Rate ∆: {law1_hom_change}%'),
-#         ])
-#     ],
-#     style={'display': 'inline-block',
-#            'text-align': 'center',
-#            'background-color': '#70747c',
-#            'color':'white',
-#            'fontWeight': 'bold',
-#            'fontSize':20},
-#     outline=True)
-
-#     law_button2 = dbc.Button(
-#         f"Click Here for More Info on Law #{dd4}",
-#         block=True,
-#         size='lg'
-#     )
+    full_details_df = stats_df[['Law ID','State','Year','Law Class','Effect','Content']]
+    #full_details_df = full_details_df.drop_duplicates()
 
 
-#     card5 = dbc.Card([
-#         dbc.CardBody([
-#             html.P(f'Suicide Rate ∆: {law2_sui_change}%'),
-#             html.P(f'Homicide Rate ∆: {law2_hom_change}%')
-#         ])
-#     ],
-#     style={'display': 'inline-block',
-#            'text-align': 'center',
-#            'background-color': '#70747c',
-#            'color':'white',
-#            'fontWeight': 'bold',
-#            'fontSize':20},
-#     outline=True)
-
-#     law1_df = stats_df[stats_df['Law ID']==dd3]
-#     law2_df = stats_df[stats_df['Law ID']==dd4]
-
-#     law1_df = law1_df[['Law ID','State','Year','Law Class','Effect','Content']]
-#     law2_df = law2_df[['Law ID','State','Year','Law Class','Effect','Content']]
-
-
-#     law_table1 = dt.DataTable(
-#         columns=[{"name": i, "id": i} for i in law1_df.columns],
-#         data=law1_df.to_dict('records'),
-#         style_data={
-#             'whiteSpace': 'normal',
-#             'height': '150px',
-#             'color':'black',
-#             'backgroundColor': 'white'
-#         },
-#         style_cell={'textAlign': 'left'}
-#     )
-
-
-#     law_table2 = dt.DataTable(
-#         columns=[{"name": i, "id": i} for i in law2_df.columns],
-#         data=law2_df.to_dict('records'),
-#         style_data={
-#             'whiteSpace': 'normal',
-#             'height': '150px',
-#             'color':'black',
-#             'backgroundColor': 'white'
-#         },
-#         style_cell={'textAlign': 'left'}
-#     )
-
-#     return law_button1, law_button2, card4, card5, law_table1, law_table2
+    law_table = dt.DataTable(
+        columns=[{"name": i, "id": i} for i in full_details_df.columns],
+        data=full_details_df.to_dict('records'),
+        style_data={
+            'whiteSpace': 'normal',
+            'height': '150px',
+            'color':'black',
+            'backgroundColor': 'white'
+        },
+        style_cell={'textAlign': 'left'}
+    )
+####testasfsdfsdfsdfd
+    return law_table
     
 
 @app.callback(
