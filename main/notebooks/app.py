@@ -1,5 +1,4 @@
 #Import packages
-
 import pandas as pd
 import numpy as np
 import os
@@ -79,7 +78,23 @@ df_for_dict = df_for_dict.drop_duplicates(subset='State',keep='first')
 year_state_dict = df_for_dict.groupby('Year')['State'].apply(list).to_dict()
 year_state_dict_sorted = {l: sorted(m) for l, m in year_state_dict.items()} #sort value by list
 
+test = law_df[law_df['Year']>=1991]
+map_df = pd.DataFrame(test[['State','ST']].value_counts()).reset_index()
+map_df = map_df.rename(columns={0: 'Count'})
 
+fig = px.choropleth(map_df,
+                        locations='ST',
+                        color='Count',
+                        template='plotly_dark',
+                        hover_name='State',
+                        locationmode='USA-states',
+                        color_continuous_scale="Viridis",
+                        labels={
+                                'Count':'# Laws Passed',
+                                'ST':'State'
+                        },
+                        title='All Laws by Type (1991-2020)',
+                        scope='usa')
 
 tabs_styles = {
     'height': '44px'
@@ -123,7 +138,7 @@ app.layout = html.Div([
                        html.P("This dashboard was created as a tool to: ",style={'color':'white'}),
                        html.P("1.) Understand the types of firearm laws passed in each state and over time",style={'color':'white'}),
                        html.P("2.) Find relationships between state-level firearms legislation and the firearm-related homicide and suicides rates by state and year after the laws were passed.",style={'color':'white'}),
-                       html.P("3.) Determine the level of similarity between any two laws",style={'color':'white'}),
+                       html.P("3.) Determine the level of similarity between the text of any two laws and their impacts on suicide and homicide rates following their passage.",style={'color':'white'}),
 
 
                        html.Br()
@@ -133,12 +148,12 @@ app.layout = html.Div([
                    ],style={'text-decoration': 'underline'}),
                    
                    html.Div([
-                       html.P(['1.) ',html.A('RAND State Firearm Law Database',href='https://www.rand.org/pubs/tools/TLA243-2-v2.html',style={'color':'white'})],style={'color':'white'}),
-                       html.P(['2.) ',html.A('RAND State-Level Estimates of Household Firearm Ownership',href='https://www.rand.org/pubs/tools/TL354.html',style={'color':'white'})],style={'color':'white'}),
-                       html.P(['3.) ',html.A('Firearm Related Deaths by State and Year',href='https://www.statefirearmlaws.org/states/')],style={'color':'white'}),
-                       html.P(['4.) ',html.A('Median Income',href='https://fred.stlouisfed.org/release/tables?rid=118&eid=259194')],style={'color':'white'}),
-                       html.P(['5.) ',html.A('Population',href='https://fred.stlouisfed.org/release/tables?rid=118&eid=259194')],style={'color':'white'}),
-                       html.P(['5.) ',html.A('Voting Histories',href='https://github.com/statzenthusiast921/US_Elections_Project/blob/main/Data/FullElectionsData.xlsx')],style={'color':'white'}),
+                       html.P(['1.) ',html.A('RAND State Firearm Law Database',href='https://www.rand.org/pubs/tools/TLA243-2-v2.html')],style={'color':'white'}),
+                       html.P(['2.) ',html.A('RAND State-Level Estimates of Household Firearm Ownership',href='https://www.rand.org/pubs/tools/TL354.html')],style={'color':'white'}),
+                       html.P(['3.) Scraped ',html.A('firearm related deaths data by state and year',href='https://www.statefirearmlaws.org/states/')],style={'color':'white'}),
+                       html.P(['4.) Scraped ',html.A('median income',href='https://fred.stlouisfed.org/release/tables?rid=118&eid=259194'),' data from the Federal Reserve Bank of St. Louis Economic Data website'],style={'color':'white'}),
+                       html.P(['5.) Scraped ',html.A('population',href='https://fred.stlouisfed.org/release/tables?rid=118&eid=259194')," data from the Federal Reserve Bank of St. Louis Economic Data website"],style={'color':'white'}),
+                       html.P(['5.) ',html.A('County-level voting histories',href='https://github.com/statzenthusiast921/US_Elections_Project/blob/main/Data/FullElectionsData.xlsx')," data that I compiled for a previous project"],style={'color':'white'}),
 
                        html.Br()
                    ]),
@@ -146,8 +161,8 @@ app.layout = html.Div([
                        html.P(dcc.Markdown('''**What are the limitations of this data?**'''),style={'color':'white'}),
                    ],style={'text-decoration': 'underline'}),
                    html.Div([
-                       html.P("1.) Comprehensive data for every measure used was not always available for every state or every year needed in this analysis.  Therefore, I only included data that covered the range of years 1991 through 2020.  The District of Colubmia was not included in the analysis of firearm-related homicide and suicide data due to the challenge of finding enough data covering all 30 years.",style={'color':'white'}),
-                       html.P("2.) ",style={'color':'white'}),
+                       html.P("1.) Comprehensive data for every measure used was not always available for every state or every year needed in this analysis.  Therefore, I only included data that covered the range of years 1991 through 2020.",style={'color':'white'}),
+                       html.P("2.) The District of Colubmia was not included in the analysis of firearm-related homicide and suicide data due to the challenge of finding enough data covering all 30 years.",style={'color':'white'}),
                        html.P("3.) ",style={'color':'white'})
 
                    ])
@@ -160,22 +175,22 @@ app.layout = html.Div([
             children=[
                 dbc.Row([
                     dbc.Col([
-                        html.P('Click a state on the map or select a law type:')
-                    ],width=2),
-                    dbc.Col([
-                        dcc.RadioItems(
-                                id='radio1',
-                                options=[
-                                    {'label': 'All Laws', 'value': 'All Laws'},
-                                    {'label': 'Permissive', 'value': 'Permissive'},
-                                    {'label': 'Restrictive', 'value': 'Restrictive'}
-                                ],
-                                value='All Laws',
+                        html.Div([
+                            dbc.Button("Click Here for Instructions", id="open2",color='secondary',style={"fontSize":18}),
+                            dbc.Modal([
+                                    dbc.ModalHeader("Descriptions"),
+                                    dbc.ModalBody(
+                                        children=[
+                                            html.P('Test')
+                                        ]
+                                    ),
+                                    dbc.ModalFooter(
+                                        dbc.Button("Close", id="close2", className="ml-auto")
+                                    ),
+                            ],id="modal2",size="xl",scrollable=True),
+                        ],className="d-grid gap-2")
 
-                                labelStyle={'display': 'block','text-align': 'left'}
-
-                        ),
-                    ],width=4),
+                    ],width=6),
                     dbc.Col([
                         html.Div([
                             dbc.Button("Click Here for Law Descriptions", id="open1",color='secondary',style={"fontSize":18}),
@@ -225,15 +240,27 @@ app.layout = html.Div([
                                 ],id="modal1",size="xl",scrollable=True),
                         ],className="d-grid gap-2"),
                     ],width=6),
-                    dbc.Col([
-                        dcc.Graph(id='state_law_freq_map')
-                    ],width=6),
-                    dbc.Col([
-                        dcc.Graph(id='law_types_treemap'),
-                        html.Br(),
-                        html.Br(),
-                        dcc.Graph(id='state_timeline')
-                    ],width=6)
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Card(id='state_set_up')
+                        ],width=12)
+                    ]),
+                    dbc.Row([
+                        dbc.Col([
+                            dbc.Card(id='card_a')
+                        ],width=4),
+                        dbc.Col([
+                            dbc.Card(id='card_b'),
+                        ],width=4),
+                        dbc.Col([
+                            dbc.Card(id='card_c')
+                        ],width=4)
+                    ]),
+                    dbc.Row([
+                        dbc.Col([
+                            dcc.Graph(id='state_law_freq_map',figure = fig)
+                        ],width=12)
+                    ])
                 ])
             ]
         ),
@@ -243,6 +270,7 @@ app.layout = html.Div([
             children=[
                 dbc.Row([
                     dbc.Col([
+                        html.Label(dcc.Markdown('''**Choose a range of years:**'''),style={'color':'white'}),                        
                         dcc.RangeSlider(
                                     id='range_slider',
                                     min=1991,
@@ -256,6 +284,7 @@ app.layout = html.Div([
                     ],width=6),
             
                     dbc.Col([
+                        html.Label(dcc.Markdown('''**Choose a cluster:**'''),style={'color':'white'}),                        
                         dcc.Dropdown(
                             id='dropdown1',
                             options=[{'label': i, 'value': i} for i in cluster_choices],
@@ -292,6 +321,7 @@ app.layout = html.Div([
             children=[
                 dbc.Row([
                     dbc.Col([
+                        html.Label(dcc.Markdown('''**Choose Law Type:**'''),style={'color':'white'}),                        
                         dcc.Dropdown(
                             id='dropdown2',
                             options=[{'label': i, 'value': i} for i in law_type_choices],
@@ -299,6 +329,7 @@ app.layout = html.Div([
                         )
                     ],width=6),
                     dbc.Col([
+                        html.Label(dcc.Markdown('''**Choose Law #1:**'''),style={'color':'white'}),                        
                         dcc.Dropdown(
                             id='dropdown3',
                             options=[{'label': i, 'value': i} for i in law_list_choices],
@@ -306,6 +337,7 @@ app.layout = html.Div([
                         )
                     ],width=3),
                       dbc.Col([
+                        html.Label(dcc.Markdown('''**Choose Law #2:**'''),style={'color':'white'}),                        
                         dcc.Dropdown(
                             id='dropdown4',
                             options=[{'label': i, 'value': i} for i in law_list_choices],
@@ -315,6 +347,8 @@ app.layout = html.Div([
                 ]),
                 dbc.Row([
                     dbc.Col([
+                        html.Br(),
+                        html.Br(),
                         dcc.Graph(id='cosine_matrix')
                     ],width=6),
                     dbc.Col([
@@ -335,7 +369,7 @@ app.layout = html.Div([
                 dbc.Row([
                     dbc.Col([
                         html.Div([
-                            dbc.Button("Click Here for More Details",id='open2',block=True,size='lg'),
+                            dbc.Button("Click Here for More Details",id='open3',block=True,size='lg'),
                         ],className="d-grid gap-2"),
                         #Button for Law #1 Details
                         html.Div([
@@ -351,9 +385,9 @@ app.layout = html.Div([
                                         ]
                                     ),
                                     dbc.ModalFooter(
-                                        dbc.Button("Close", id="close2")
+                                        dbc.Button("Close", id="close3")
                                     ),
-                                ],id="modal2", size="xl",scrollable=True
+                                ],id="modal3", size="xl",scrollable=True
                             )
                         ]),
                     ],width=12)
@@ -405,355 +439,255 @@ def render_content(tab):
 
 #-------------------------- Tab #2: Descriptive Analysis on Laws --------------------------#
 
-#Configure reactivity for changing choropleth state map
-@app.callback(
-    Output('state_law_freq_map','figure'),
-    Input('radio1','value')
-) 
-
-def update_law_map(radio_select):
-   
-    if "All Laws" in radio_select:
-        test = law_df[law_df['Year']>=1991]
-        map_df = pd.DataFrame(test[['State','ST']].value_counts()).reset_index()
-        map_df = map_df.rename(columns={0: 'Count'})
-
-        fig = px.choropleth(map_df,
-                    locations='ST',
-                    color='Count',
-                    template='plotly_dark',
-                    hover_name='State',
-                    locationmode='USA-states',
-                    color_continuous_scale="Viridis",
-
-                    labels={
-                        'Count':'# Laws Passed',
-                        'ST':'State'
-                    },
-                    title='All Laws by Type (1991-2020)',
-                    scope='usa')
-            
-        return fig
-
-    elif "Permissive" in radio_select:
-        test = law_df[law_df['Year']>=1991]
-
-        new_df = test[test['Effect']==radio_select]
-
-        map_df = pd.DataFrame(new_df[['State','ST']].value_counts()).reset_index()
-        map_df = map_df.rename(columns={0: 'Count'})
-
-        fig = px.choropleth(map_df,
-                    locations='ST',
-                    color='Count',
-                    template='plotly_dark',
-                    hover_name='State',
-                    title='Permissive Laws by Type (1991-2020)',
-                    color_continuous_scale="Viridis",
-
-                    locationmode='USA-states',
-                    labels={
-                        'Count':'# Laws Passed',
-                        'ST':'State'
-                    },
-                    scope='usa')
-        return fig
-    else:
-        test = law_df[law_df['Year']>=1991]
-
-        new_df = test[test['Effect']==radio_select]
-        map_df = pd.DataFrame(new_df[['State','ST']].value_counts()).reset_index()
-        map_df = map_df.rename(columns={0: 'Count'})
-
-        fig = px.choropleth(map_df,
-                    locations='ST',
-                    color='Count',
-                    template='plotly_dark',
-                    hover_name='State',
-                    title='Restrictive Laws by Type (1991-2020)',
-                    color_continuous_scale="Viridis",
-                    locationmode='USA-states',
-                    labels={
-                        'Count':'# Laws Passed',
-                        'ST':'State'
-                    },
-                    scope='usa')
-        #fig.update_layout(colorscale='h', selector=dict(type='heatmap'))
-
-        return fig
-
 #Configure reactivity for treemap with inputs of law type and map clicking
 @app.callback(
-    Output('law_types_treemap', 'figure'), 
-    Input('radio1','value'),
+    Output('state_set_up','children'),
+    Output('card_a', 'children'), 
+    Output('card_b', 'children'), 
+    Output('card_c', 'children'), 
     Input('state_law_freq_map', 'clickData')
 ) 
 
-def update_tree_map_on_click(radio_select,click_state):
+def update_cards_on_click(click_state):
 
-#Condition 1/6: No Click, All Laws
-    if not click_state and "All Laws" in radio_select:
-        #raise dash.exceptions.PreventUpdate
-        test = law_df[law_df['Year']>=1991]
-
-        location = test['State'].sort_values().iloc[0]
-        filtered = test[test['State']==location]
-    
-        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()[0:5]
-        class_df = class_df.rename(
-                    columns={
-                        'index': 'Law Class',
-                        'Law Class':'# Laws'
-                    }
-        )
-        tree_fig = px.treemap(
-            class_df, 
-            path = ['Law Class'],
-            values = '# Laws',
-            template='plotly_dark',
-            title=f'Top 5 Classes of Laws Passed in {location}',
-            color = 'Law Class'
-        )
-        tree_fig.update_traces(
-            hovertemplate='# Laws=%{value}'
-        )
-        tree_fig.update_layout(
-            margin=dict(l=0, r=0, t=30, b=0),
-            height=200
-        )
-        return tree_fig
-
-#Condition 2/6: No Click, Permissive Laws
-
-    elif not click_state and "Permissive" in radio_select:
-        test = law_df[law_df['Year']>=1991]
-
-        location = test['State'].sort_values().iloc[0]
-        filtered = test[test['State']==location]
-        filtered = filtered[filtered['Effect']==radio_select]
-
-        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()[0:5]
-        class_df = class_df.rename(
-                    columns={
-                        'index': 'Law Class',
-                        'Law Class':'# Laws'
-                    }
-        )
-        tree_fig = px.treemap(
-            class_df, 
-            path = ['Law Class'],
-            values = '# Laws',
-            template='plotly_dark',
-            title=f'Top 5 Classes of Laws Passed in {location}',
-            color = 'Law Class'
-        )
-        tree_fig.update_traces(
-            hovertemplate='# Laws=%{value}'
-        )
-        tree_fig.update_layout(
-            margin=dict(l=0, r=0, t=30, b=0),
-            height=200
-        )
-        return tree_fig
-
-#Condition 3/6: No Click, Restrictive Laws
-
-    elif not click_state and "Restrictive" in radio_select:
-        test = law_df[law_df['Year']>=1991]
-
-        location = test['State'].sort_values().iloc[0]
-        filtered = test[test['State']==location]
-        filtered = filtered[filtered['Effect']==radio_select]
-
-        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()[0:5]
-        class_df = class_df.rename(
-                    columns={
-                        'index': 'Law Class',
-                        'Law Class':'# Laws'
-                    }
-        )
-        tree_fig = px.treemap(
-            class_df, 
-            path = ['Law Class'],
-            values = '# Laws',
-            template='plotly_dark',
-            title=f'Top 5 Classes of Laws Passed in {location}',
-            color = 'Law Class'
-        )
-        tree_fig.update_traces(
-            hovertemplate='# Laws=%{value}'
-        )
-        tree_fig.update_layout(
-            margin=dict(l=0, r=0, t=30, b=0),
-            height=200
-        )
-        return tree_fig
-
-#Condition 4/6: Yes Click, All Laws
-
-    elif click_state and "All Laws" in radio_select:
-        test = law_df[law_df['Year']>=1991]
-
-        location = click_state['points'][0]['hovertext']
-        filtered = test[test['State']==location]
-    
-        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()[0:5]
-        class_df = class_df.rename(
-                    columns={
-                        'index': 'Law Class',
-                        'Law Class':'# Laws'
-                    }
-                )
-
-        tree_fig = px.treemap(
-            class_df, 
-            path = ['Law Class'],
-            values = '# Laws',
-            template='plotly_dark',
-            title=f'Top 5 Classes of Laws Passed in {location}',
-            color = 'Law Class'
-        )
-        tree_fig.update_traces(
-            hovertemplate='# Laws=%{value}'
-        )
-        tree_fig.update_layout(
-            margin=dict(l=0, r=0, t=30, b=0),
-            height=200
-        )
-        return tree_fig
-
-#Condition 5/6: Yes Click, Permissive Laws
-
-    elif click_state and "Permissive" in radio_select:
-        test = law_df[law_df['Year']>=1991]
-
-        location = click_state['points'][0]['hovertext']
-        filtered = test[test['State']==location]
-        filtered = filtered[filtered['Effect']==radio_select]
-
-        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()[0:5]
-        class_df = class_df.rename(
-                    columns={
-                        'index': 'Law Class',
-                        'Law Class':'# Laws'
-                    }
-                )
-
-        tree_fig = px.treemap(
-            class_df, 
-            path = ['Law Class'],
-            values = '# Laws',
-            template='plotly_dark',
-            title=f'Top 5 Classes of Permissive Laws Passed in {location}',
-            color = 'Law Class'
-        )
-
-        tree_fig.update_traces(
-            hovertemplate='# Laws=%{value}'
-        )
-        tree_fig.update_layout(
-            margin=dict(l=0, r=0, t=30, b=0),
-            height=200
-        )
-        return tree_fig
-
-#Condition 6/6: Yes Click, Restrictive Laws
-
-    else:
-        test = law_df[law_df['Year']>=1991]
-
-        location = click_state['points'][0]['hovertext']
-        filtered = test[test['State']==location]
-        filtered = filtered[filtered['Effect']==radio_select]
-
-        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()[0:5]
-        class_df = class_df.rename(
-                    columns={
-                        'index': 'Law Class',
-                        'Law Class':'# Laws'
-                    }
-                )
-
-        tree_fig = px.treemap(
-            class_df, 
-            path = ['Law Class'],
-            values = '# Laws',
-            template='plotly_dark',
-            title=f'Top 5 Classes of Restrictive Laws Passed in {location}',
-            color = 'Law Class'
-        )
-        tree_fig.update_traces(
-            hovertemplate='# Laws=%{value}'
-        )
-        tree_fig.update_layout(
-            margin=dict(l=0, r=0, t=30, b=0),
-            height=200
-        )
-        return tree_fig
-
-#Configure reactivity for area chart based on click
-@app.callback(
-    Output('state_timeline', 'figure'), 
-    Input('state_law_freq_map', 'clickData')
-) 
-
-def update_area_chart_on_click(click_state):
+#Condition 1/6: No Click
     if not click_state:
         #raise dash.exceptions.PreventUpdate
-        location = law_df['State'].sort_values().iloc[0]
-        filtered = law_df[law_df['State']==location]
-        filtered = filtered[filtered['Year']>=1991]
+        test = law_df[law_df['Year']>=1991]
 
-        timeline_df = pd.DataFrame(filtered['Year'].value_counts()).reset_index()
-        timeline_df = timeline_df.rename(
+        location = test['State'].sort_values().iloc[0]
+        filtered = test[test['State']==location]
+    
+        #-----Dataframe for Stat1-----#
+        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()
+        class_df = class_df.rename(
+                    columns={
+                        'index': 'Law Class',
+                        'Law Class':'# Laws'
+                    }
+        )
+        stat1 = round(class_df['# Laws'][0] / class_df['# Laws'].sum()*100,1)
+        #-----Dataframe for Stat2-----#
+        time_df = pd.DataFrame(filtered['Year'].value_counts()).reset_index()
+        time_df = time_df.rename(
                     columns={
                         'index': 'Year',
                         'Year':'# Laws'
                     }
-                )
-
-        timeline_fig = px.area(
-            timeline_df,
-            x='Year',
-            y='# Laws',
-            template='plotly_dark',
-            markers=True,
-            title = f'Total # Laws Passed in {location} (1991 to 2020)'
         )
-        timeline_fig.update_layout(
-            margin=dict(l=0, r=0, t=30, b=0),
-            height=200
+        stat2 = round(time_df['# Laws'][0] / time_df['# Laws'].sum()*100,1)
+        #-----Dataframe for Stat3-----#
+        effect_df = pd.DataFrame(filtered['Effect'].value_counts()).reset_index()
+        effect_df = effect_df.rename(
+                    columns={
+                        'index': 'Effect',
+                        'Effect':'# Laws'
+                    }
         )
-        return timeline_fig
+        stat3 = round(effect_df['# Laws'][0] / effect_df['# Laws'].sum()*100,1)
 
-    else:
+        card_state_set_up = dbc.Card([
+            dbc.CardBody([
+                html.P(f'The following 2 rows of stats pertain to {location}'),
+                html.H6(f'The first row are {location} specific stats while the second row compare to the nation as a whole.'),
+            ])
+        ],
+        style={'display': 'inline-block',
+                'text-align': 'center',
+                'background-color': '#70747c',
+                'color':'white',
+                'fontWeight': 'bold',
+                'fontSize':20},
+        outline=True)
+
+        card_a = dbc.Card([
+            dbc.CardBody([
+                html.P(f'Most Common Law Type'),
+                html.H6(f'{class_df["Law Class"][0]} ({stat1}%)'),
+            ])
+        ],
+        style={'display': 'inline-block',
+                'text-align': 'center',
+                'background-color': '#70747c',
+                'color':'white',
+                'fontWeight': 'bold',
+                'fontSize':20},
+        outline=True)
+
+        card_b = dbc.Card([
+            dbc.CardBody([
+                html.P(f'Year Most Laws Passed'),
+                html.H6(f'{time_df["Year"][0]} ({stat2}%)'),
+            ])
+        ],
+        style={'display': 'inline-block',
+                'text-align': 'center',
+                'background-color': '#70747c',
+                'color':'white',
+                'fontWeight': 'bold',
+                'fontSize':20},
+        outline=True)
+
+        card_c = dbc.Card([
+            dbc.CardBody([
+                html.P(f'Most Common Law Effect'),
+                html.H6(f'{effect_df["Effect"][0]} ({stat3})%'),
+            ])
+        ],
+        style={'display': 'inline-block',
+                'text-align': 'center',
+                'background-color': '#70747c',
+                'color':'white',
+                'fontWeight': 'bold',
+                'fontSize':20},
+        outline=True)
+        
+        return card_state_set_up, card_a, card_b, card_c
+
+    elif click_state:
+
+        test = law_df[law_df['Year']>=1991]
+
         location = click_state['points'][0]['hovertext']
-        filtered = law_df[law_df['State']==location]
-        filtered = filtered[filtered['Year']>=1991]
-
-
-        timeline_df = pd.DataFrame(filtered['Year'].value_counts()).reset_index()
-        timeline_df = timeline_df.rename(
+        filtered = test[test['State']==location]
+    
+         #-----Dataframe for Stat1-----#
+        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()
+        class_df = class_df.rename(
+                    columns={
+                        'index': 'Law Class',
+                        'Law Class':'# Laws'
+                    }
+        )
+        stat1 = round(class_df['# Laws'][0] / class_df['# Laws'].sum()*100,1)
+        #-----Dataframe for Stat2-----#
+        time_df = pd.DataFrame(filtered['Year'].value_counts()).reset_index()
+        time_df = time_df.rename(
                     columns={
                         'index': 'Year',
                         'Year':'# Laws'
                     }
-        ).sort_values(by='Year',ascending=False)
+        )
+        
+        stat2 = round(time_df['# Laws'][0] / time_df['# Laws'].sum()*100,1)
+        #-----Dataframe for Stat3-----#
+        effect_df = pd.DataFrame(filtered['Effect'].value_counts()).reset_index()
+        effect_df = effect_df.rename(
+                    columns={
+                        'index': 'Effect',
+                        'Effect':'# Laws'
+                    }
+        )
 
-        timeline_fig = px.area(
-            timeline_df,
-            x='Year',
-            y='# Laws',
-            template='plotly_dark',
-            markers=True,
-            title = f'Total # Laws Passed in {location} (1991 to 2020)'
- 
-        )
-        timeline_fig.update_layout(
-            margin=dict(l=0, r=0, t=30, b=0),
-            height=200
-        )
-        return timeline_fig
+        stat3 = round(effect_df['# Laws'][0] / effect_df['# Laws'].sum()*100,1)
+
+        #---------- Set up all of the dynamic cards ----------#
+        card_state_set_up = dbc.Card([
+            dbc.CardBody([
+                html.P(f'The following 2 rows of stats pertain to {location}'),
+                html.H6(f'The first row are {location} specific stats while the second row compare to the nation as a whole.'),
+
+            ])
+        ],
+        style={'display': 'inline-block',
+                'text-align': 'center',
+                'background-color': '#70747c',
+                'color':'white',
+                'fontWeight': 'bold',
+                'fontSize':20},
+        outline=True)
+
+        card_a = dbc.Card([
+            dbc.CardBody([
+                html.P(f'Most Common Law'),
+                html.H6(f'{class_df["Law Class"][0]} ({stat1}%)'),
+            ])
+        ],
+        style={'display': 'inline-block',
+                'text-align': 'center',
+                'background-color': '#70747c',
+                'color':'white',
+                'fontWeight': 'bold',
+                'fontSize':20},
+        outline=True)
+
+        card_b = dbc.Card([
+            dbc.CardBody([
+                html.P(f'Year Most Laws Passed'),
+                html.H6(f'{time_df["Year"][0]} ({stat2}%)'),
+            ])
+        ],
+        style={'display': 'inline-block',
+                'text-align': 'center',
+                'background-color': '#70747c',
+                'color':'white',
+                'fontWeight': 'bold',
+                'fontSize':20},
+        outline=True)
+        if stat3 != 50:
+            card_c = dbc.Card([
+                dbc.CardBody([
+                    html.P(f'Most Common Law Effect'),
+                    html.H6(f'{effect_df["Effect"][0]} ({stat3}%)'),
+                ])
+            ],
+            style={'display': 'inline-block',
+                    'text-align': 'center',
+                    'background-color': '#70747c',
+                    'color':'white',
+                    'fontWeight': 'bold',
+                    'fontSize':20},
+            outline=True)
+        else:
+            card_c = dbc.Card([
+                dbc.CardBody([
+                    html.P(f'Most Common Law Effect'),
+                    html.H6(f'Restrictive/Permissive ({stat3}%)'),
+                ])
+            ],
+            style={'display': 'inline-block',
+                    'text-align': 'center',
+                    'background-color': '#70747c',
+                    'color':'white',
+                    'fontWeight': 'bold',
+                    'fontSize':20},
+            outline=True)
+
+
+        return card_state_set_up, card_a, card_b, card_c
+
+# #Condition 6/6: Yes Click, Restrictive Laws
+
+#     else:
+#         test = law_df[law_df['Year']>=1991]
+
+#         location = click_state['points'][0]['hovertext']
+#         filtered = test[test['State']==location]
+#         filtered = filtered[filtered['Effect']==radio_select]
+
+#         class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()[0:5]
+#         class_df = class_df.rename(
+#                     columns={
+#                         'index': 'Law Class',
+#                         'Law Class':'# Laws'
+#                     }
+#                 )
+
+#         tree_fig = px.treemap(
+#             class_df, 
+#             path = ['Law Class'],
+#             values = '# Laws',
+#             template='plotly_dark',
+#             title=f'Top 5 Classes of Restrictive Laws Passed in {location}',
+#             color = 'Law Class'
+#         )
+#         tree_fig.update_traces(
+#             hovertemplate='# Laws=%{value}'
+#         )
+#         tree_fig.update_layout(
+#             margin=dict(l=0, r=0, t=30, b=0)
+#         )
+#         return tree_fig
 #-----------------------------Tab #3: Clustering -----------------------------#
 
     
@@ -1077,27 +1011,6 @@ def slope_graph(dd3,dd4,radio2):#,dd2):
         }
     )
 
-    # #Create df to make dynamic upper y axis range that is consistent with Law Class
-    # y_axis_max_df = law_df[law_df['Law Class']==dd2]
-    # y_stats_df = pd.merge(
-    #     y_axis_max_df,
-    #     filter_cluster,
-    #     how='left',
-    #     on=['Law ID']
-    # )
-    # y_stats_df = y_stats_df.rename(
-    #     columns={
-    #         'Year_x': 'Year',
-    #         'State_x':'State'
-    #     }
-    # )
-    #y_axis_max_df = law_df[law_df['Law Class']=="registration"]
-    # y_max_hom = max(y_stats_df['HomicidesB3'].max(),y_stats_df['HomicidesA3'].max())
-    # y_max_hom = round(y_max_hom + 1,0)
-
-    # y_max_sui = max(y_stats_df['SuicidesB3'].max(),y_stats_df['SuicidesA3'].max())
-    # y_max_sui = round(y_max_sui + 1,0)
-
     law1_hom_before = round(stats_df[stats_df['Law ID']==dd3]['HomicidesB3'].values[0],2)
     law1_sui_before = round(stats_df[stats_df['Law ID']==dd3]['SuicidesB3'].values[0],2)
     law2_hom_before = round(stats_df[stats_df['Law ID']==dd4]['HomicidesB3'].values[0],2)
@@ -1114,37 +1027,33 @@ def slope_graph(dd3,dd4,radio2):#,dd2):
     law2_hom_change = round(((law2_hom_before - law2_hom_after)/law2_hom_before)*100,1)*-1
     law2_sui_change = round(((law2_sui_before - law2_sui_after)/law2_sui_before)*100,1)*-1
 
-
-    #big_change = np.where(law1_hom_change>law2_hom_change,1,0)
-    # num1 = -45.3
-    # num2 = 9.32
-    # arrow_placement1 = np.where(law1_hom_change < law2_hom_change , 1, 0).tolist()
-    # arrow_placement2 = np.where(law1_sui_change < law2_sui_change , 1, 0).tolist()
-
     if "Homicides" in radio2:
         fig = go.Figure(
             go.Scatter(
                 x=[0, 1], 
                 y=[law1_hom_before, law1_hom_after], 
-                mode='lines+markers', 
-                name=f'{dd3}'
+                mode='lines+markers+text', 
+                name=f'{dd3}',
+                text=["Before", "After"]
+
             )
         )
         fig.add_trace(
             go.Scatter(
                 x=[0,1], 
                 y=[law2_hom_before,law2_hom_after],
-                mode='lines+markers',
-                name=f'{dd4}'
+                mode='lines+markers+text',
+                name=f'{dd4}',
+                text = ["Before","After"]
             )
         ) 
         fig.update_layout(
             template='plotly_dark',
-            hovermode = 'x'
+            hovermode = 'x',
+            yaxis_title="Homicide Rate (per 100K)",
         )
         fig.update_yaxes(range=[0, 20])
-        #fig.add_annotation(text=f"{law1_hom_change}% ∆", x=0.5, y=(law1_hom_before+law1_hom_after)/2, arrowhead=1, showarrow=True)
-        #fig.add_annotation(text=f"{law2_hom_change}% ∆", x=0.5, y=(law2_hom_before+law2_hom_after)/2, arrowhead=1, showarrow=True)
+        fig.update_xaxes(visible=False)
 
         return fig
     else:
@@ -1152,26 +1061,29 @@ def slope_graph(dd3,dd4,radio2):#,dd2):
             go.Scatter(
                 x=[0, 1], 
                 y=[law1_sui_before, law1_sui_after], 
-                mode='lines+markers', 
-                name=f'{dd3}'
+                mode='lines+markers+text', 
+                name=f'{dd3}',
+                text = ["Before","After"]
+
             )
         )
         fig.add_trace(
             go.Scatter(
                 x=[0,1], 
                 y=[law2_sui_before,law2_sui_after],
-                mode='lines+markers',
-                name=f'{dd4}'
+                mode='lines+markers+text',
+                name=f'{dd4}',
+                text = ["Before","After"]
             )
         ) 
         fig.update_layout(
             template='plotly_dark',
-            hovermode = 'x'
+            hovermode = 'x',
+            yaxis_title="Suicide Rate (per 100K)",
+
         )
         fig.update_yaxes(range=[0, 20])
-        #fig.add_annotation(text=f"{law1_sui_change}% ∆", x=0.5, y=(law1_sui_before+law1_hom_after)/2, arrowhead=1, showarrow=True, ay=45)
-        #fig.add_annotation(text=f"{law2_sui_change}% ∆", x=0.5, y=(law2_sui_before+law2_hom_after)/2, arrowhead=1, showarrow=True)
-
+        fig.update_xaxes(visible=False)
 
         return fig
 
@@ -1219,10 +1131,9 @@ def update_cards1(dd3,dd4):
         },
         style_cell={'textAlign': 'left'}
     )
-####testasfsdfsdfsdfd
     return law_table
     
-
+#----------Configure reactivity for Instructions Button #1 --> Tab #2----------#
 @app.callback(
     Output("modal1", "is_open"),
     Input("open1", "n_clicks"), 
@@ -1235,6 +1146,7 @@ def toggle_modal1(n1, n2, is_open):
         return not is_open
     return is_open
 
+#----------Configure reactivity for Law Details Button #2 --> Tab #2----------#
 @app.callback(
     Output("modal2", "is_open"),
     Input("open2", "n_clicks"), 
@@ -1247,6 +1159,7 @@ def toggle_modal2(n1, n2, is_open):
         return not is_open
     return is_open
 
+#----------Configure reactivity for Specific Law Details Button #3 --> Tab #4----------#
 @app.callback(
     Output("modal3", "is_open"),
     Input("open3", "n_clicks"), 
