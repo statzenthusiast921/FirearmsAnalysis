@@ -93,7 +93,7 @@ fig = px.choropleth(map_df,
                                 'Count':'# Laws Passed',
                                 'ST':'State'
                         },
-                        title='All Laws by Type (1991-2020)',
+                        title='All Laws Passed (1991-2020)',
                         scope='usa')
 
 tabs_styles = {
@@ -369,7 +369,7 @@ app.layout = html.Div([
                 dbc.Row([
                     dbc.Col([
                         html.Div([
-                            dbc.Button("Click Here for More Details",id='open3',block=True,size='lg'),
+                            dbc.Button("Click Here for More Details",id='open3',size='lg'),#,block=True),
                         ],className="d-grid gap-2"),
                         #Button for Law #1 Details
                         html.Div([
@@ -457,6 +457,8 @@ def update_cards_on_click(click_state):
 
         location = test['State'].sort_values().iloc[0]
         filtered = test[test['State']==location]
+
+        
     
         #-----Dataframe for Stat1-----#
         class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()
@@ -467,6 +469,42 @@ def update_cards_on_click(click_state):
                     }
         )
         stat1 = round(class_df['# Laws'][0] / class_df['# Laws'].sum()*100,1)
+
+        #One hot encode law classes
+        nation_class_df = test[['State','Law Class']]
+        one_hot1 = pd.get_dummies(nation_class_df['Law Class'])
+        nation_class_df = nation_class_df.drop('Law Class',axis=1)
+        nation_class_df = nation_class_df.join(one_hot1)
+
+        #sum up to state level
+        state_class = nation_class_df.groupby('State').sum()
+        state_class['denom'] = state_class.sum(axis=1)
+
+        state_class['background checks'] = state_class['background checks'] / state_class['denom']
+        state_class['carrying a concealed weapon (ccw)'] = state_class['carrying a concealed weapon (ccw)'] / state_class['denom']
+        state_class['castle doctrine'] = state_class['castle doctrine'] / state_class['denom']
+        state_class['child access laws'] = state_class['child access laws'] / state_class['denom']
+        state_class['dealer license'] = state_class['dealer license'] / state_class['denom']
+        state_class['firearm removal at scene of domestic violence'] = state_class['firearm removal at scene of domestic violence'] / state_class['denom']
+        state_class['firearm sales restrictions'] = state_class['firearm sales restrictions'] / state_class['denom']
+        state_class['firearms in college/university'] = state_class['firearms in college/university'] / state_class['denom']
+        state_class['local laws preempted by state'] = state_class['local laws preempted by state'] / state_class['denom']
+        state_class['minimum age'] = state_class['minimum age'] / state_class['denom']
+        state_class['open carry'] = state_class['open carry'] / state_class['denom']
+        state_class['permit to purchase'] = state_class['permit to purchase'] / state_class['denom']
+        state_class['prohibited possessor'] = state_class['prohibited possessor'] / state_class['denom']
+        state_class['registration'] = state_class['registration'] / state_class['denom']
+        state_class['required reporting of lost or stolen firearms'] = state_class['required reporting of lost or stolen firearms'] / state_class['denom']
+        state_class['safety training required'] = state_class['safety training required'] / state_class['denom']
+        state_class['waiting period'] = state_class['waiting period'] / state_class['denom']
+        del state_class['denom']
+
+        col = class_df["Law Class"][0]
+        nation_stats = pd.DataFrame(state_class[col])
+        nation_stats = nation_stats.sort_values(by=col,ascending=False).reset_index()
+        nation_stats['Rank'] = nation_stats[col].rank(ascending=False).astype(int)
+        n_stat1 = nation_stats[nation_stats['State']==location]['Rank'].values[0]
+
         #-----Dataframe for Stat2-----#
         time_df = pd.DataFrame(filtered['Year'].value_counts()).reset_index()
         time_df = time_df.rename(
@@ -476,6 +514,60 @@ def update_cards_on_click(click_state):
                     }
         )
         stat2 = round(time_df['# Laws'][0] / time_df['# Laws'].sum()*100,1)
+        
+        #One hot encode law classes
+        nation_time_df = test[['State','Year']]
+        one_hot1 = pd.get_dummies(nation_time_df['Year'])
+        nation_time_df = nation_time_df.drop('Year',axis=1)
+        nation_time_df = nation_time_df.join(one_hot1)
+
+        #sum up to state level
+        state_time = nation_time_df.groupby('State').sum()
+        state_time.columns = state_time.columns.astype(str)
+        state_time['denom'] = state_time.sum(axis=1)
+        
+        
+        state_time['1991'] = state_time['1991'] / state_time['denom']
+        state_time['1992'] = state_time['1992'] / state_time['denom']
+        state_time['1993'] = state_time['1993'] / state_time['denom']
+        state_time['1994'] = state_time['1994'] / state_time['denom']
+        state_time['1995'] = state_time['1995'] / state_time['denom']
+        state_time['1996'] = state_time['1996'] / state_time['denom']
+        state_time['1997'] = state_time['1997'] / state_time['denom']
+        state_time['1998'] = state_time['1998'] / state_time['denom']
+        state_time['1999'] = state_time['1999'] / state_time['denom']
+        state_time['2000'] = state_time['2000'] / state_time['denom']
+        state_time['2001'] = state_time['2001'] / state_time['denom']
+        state_time['2002'] = state_time['2002'] / state_time['denom']
+        state_time['2003'] = state_time['2003'] / state_time['denom']
+        state_time['2004'] = state_time['2004'] / state_time['denom']
+        state_time['2005'] = state_time['2005'] / state_time['denom']
+        state_time['2006'] = state_time['2006'] / state_time['denom']
+        state_time['2007'] = state_time['2007'] / state_time['denom']
+        state_time['2008'] = state_time['2008'] / state_time['denom']
+        state_time['2009'] = state_time['2009'] / state_time['denom']
+        state_time['2010'] = state_time['2010'] / state_time['denom']
+        state_time['2011'] = state_time['2011'] / state_time['denom']
+        state_time['2012'] = state_time['2012'] / state_time['denom']
+        state_time['2013'] = state_time['2013'] / state_time['denom']
+        state_time['2014'] = state_time['2014'] / state_time['denom']
+        state_time['2015'] = state_time['2015'] / state_time['denom']
+        state_time['2016'] = state_time['2016'] / state_time['denom']
+        state_time['2017'] = state_time['2017'] / state_time['denom']
+        state_time['2018'] = state_time['2018'] / state_time['denom']
+        state_time['2019'] = state_time['2019'] / state_time['denom']
+        state_time['2020'] = state_time['2020'] / state_time['denom']
+
+        del state_time['denom']
+
+
+
+        col = time_df["Year"][0]
+        nation_stats = pd.DataFrame(state_time[f'{col}'])
+        nation_stats = nation_stats.sort_values(by=f'{col}',ascending=False).reset_index()
+        nation_stats['Rank'] = nation_stats[f'{col}'].rank(ascending=False).astype(int)
+        n_stat2 = nation_stats[nation_stats['State']==location]['Rank'].values[0]
+
         #-----Dataframe for Stat3-----#
         effect_df = pd.DataFrame(filtered['Effect'].value_counts()).reset_index()
         effect_df = effect_df.rename(
@@ -486,10 +578,32 @@ def update_cards_on_click(click_state):
         )
         stat3 = round(effect_df['# Laws'][0] / effect_df['# Laws'].sum()*100,1)
 
+        #One hot encode law classes
+        nation_effect_df = test[['State','Effect']]
+        one_hot1 = pd.get_dummies(nation_effect_df['Effect'])
+        nation_effect_df = nation_effect_df.drop('Effect',axis=1)
+        nation_effect_df = nation_effect_df.join(one_hot1)
+
+
+        #sum up to state level
+        state_effect = nation_effect_df.groupby('State').sum()
+        state_effect.columns = state_effect.columns.astype(str)
+        state_effect['denom'] = state_effect.sum(axis=1)
+        
+        state_effect['Permissive'] = state_effect['Permissive'] / state_effect['denom']
+        state_effect['Restrictive'] = state_effect['Restrictive'] / state_effect['denom']
+        del state_effect['denom']
+
+        col = effect_df["Effect"][0]
+        nation_stats = pd.DataFrame(state_effect[col])
+        nation_stats = nation_stats.sort_values(by=col,ascending=False).reset_index()
+        nation_stats['Rank'] = nation_stats[col].rank(ascending=False).astype(int)
+        n_stat3 = nation_stats[nation_stats['State']==location]['Rank'].values[0]
+
+#---------- Metrics ----------#
         card_state_set_up = dbc.Card([
             dbc.CardBody([
-                html.P(f'The following 2 rows of stats pertain to {location}'),
-                html.H6(f'The first row are {location} specific stats while the second row compare to the nation as a whole.'),
+                html.P(f'{location} Metrics')
             ])
         ],
         style={'display': 'inline-block',
@@ -504,6 +618,7 @@ def update_cards_on_click(click_state):
             dbc.CardBody([
                 html.P(f'Most Common Law Type'),
                 html.H6(f'{class_df["Law Class"][0]} ({stat1}%)'),
+                html.H6(f'State Rank: {n_stat1}')
             ])
         ],
         style={'display': 'inline-block',
@@ -518,6 +633,8 @@ def update_cards_on_click(click_state):
             dbc.CardBody([
                 html.P(f'Year Most Laws Passed'),
                 html.H6(f'{time_df["Year"][0]} ({stat2}%)'),
+                html.H6(f'State Rank: {n_stat2}')
+
             ])
         ],
         style={'display': 'inline-block',
@@ -532,6 +649,8 @@ def update_cards_on_click(click_state):
             dbc.CardBody([
                 html.P(f'Most Common Law Effect'),
                 html.H6(f'{effect_df["Effect"][0]} ({stat3})%'),
+                html.H6(f'State Rank: {n_stat3}')
+
             ])
         ],
         style={'display': 'inline-block',
@@ -560,6 +679,44 @@ def update_cards_on_click(click_state):
                     }
         )
         stat1 = round(class_df['# Laws'][0] / class_df['# Laws'].sum()*100,1)
+
+
+        #One hot encode law classes
+        nation_class_df = test[['State','Law Class']]
+        one_hot1 = pd.get_dummies(nation_class_df['Law Class'])
+        nation_class_df = nation_class_df.drop('Law Class',axis=1)
+        nation_class_df = nation_class_df.join(one_hot1)
+
+        #sum up to state level
+        state_class = nation_class_df.groupby('State').sum()
+        state_class['denom'] = state_class.sum(axis=1)
+
+        state_class['background checks'] = state_class['background checks'] / state_class['denom']
+        state_class['carrying a concealed weapon (ccw)'] = state_class['carrying a concealed weapon (ccw)'] / state_class['denom']
+        state_class['castle doctrine'] = state_class['castle doctrine'] / state_class['denom']
+        state_class['child access laws'] = state_class['child access laws'] / state_class['denom']
+        state_class['dealer license'] = state_class['dealer license'] / state_class['denom']
+        state_class['firearm removal at scene of domestic violence'] = state_class['firearm removal at scene of domestic violence'] / state_class['denom']
+        state_class['firearm sales restrictions'] = state_class['firearm sales restrictions'] / state_class['denom']
+        state_class['firearms in college/university'] = state_class['firearms in college/university'] / state_class['denom']
+        state_class['local laws preempted by state'] = state_class['local laws preempted by state'] / state_class['denom']
+        state_class['minimum age'] = state_class['minimum age'] / state_class['denom']
+        state_class['open carry'] = state_class['open carry'] / state_class['denom']
+        state_class['permit to purchase'] = state_class['permit to purchase'] / state_class['denom']
+        state_class['prohibited possessor'] = state_class['prohibited possessor'] / state_class['denom']
+        state_class['registration'] = state_class['registration'] / state_class['denom']
+        state_class['required reporting of lost or stolen firearms'] = state_class['required reporting of lost or stolen firearms'] / state_class['denom']
+        state_class['safety training required'] = state_class['safety training required'] / state_class['denom']
+        state_class['waiting period'] = state_class['waiting period'] / state_class['denom']
+        del state_class['denom']
+
+        col = class_df["Law Class"][0]
+        nation_stats = pd.DataFrame(state_class[col])
+        nation_stats = nation_stats.sort_values(by=col,ascending=False).reset_index()
+        nation_stats['Rank'] = nation_stats[col].rank(ascending=False).astype(int)
+        n_stat1 = nation_stats[nation_stats['State']==location]['Rank'].values[0]
+
+
         #-----Dataframe for Stat2-----#
         time_df = pd.DataFrame(filtered['Year'].value_counts()).reset_index()
         time_df = time_df.rename(
@@ -570,6 +727,61 @@ def update_cards_on_click(click_state):
         )
         
         stat2 = round(time_df['# Laws'][0] / time_df['# Laws'].sum()*100,1)
+
+
+        #One hot encode law classes
+        nation_time_df = test[['State','Year']]
+        one_hot1 = pd.get_dummies(nation_time_df['Year'])
+        nation_time_df = nation_time_df.drop('Year',axis=1)
+        nation_time_df = nation_time_df.join(one_hot1)
+
+        #sum up to state level
+        state_time = nation_time_df.groupby('State').sum()
+        state_time.columns = state_time.columns.astype(str)
+        state_time['denom'] = state_time.sum(axis=1)
+        
+        
+        state_time['1991'] = state_time['1991'] / state_time['denom']
+        state_time['1992'] = state_time['1992'] / state_time['denom']
+        state_time['1993'] = state_time['1993'] / state_time['denom']
+        state_time['1994'] = state_time['1994'] / state_time['denom']
+        state_time['1995'] = state_time['1995'] / state_time['denom']
+        state_time['1996'] = state_time['1996'] / state_time['denom']
+        state_time['1997'] = state_time['1997'] / state_time['denom']
+        state_time['1998'] = state_time['1998'] / state_time['denom']
+        state_time['1999'] = state_time['1999'] / state_time['denom']
+        state_time['2000'] = state_time['2000'] / state_time['denom']
+        state_time['2001'] = state_time['2001'] / state_time['denom']
+        state_time['2002'] = state_time['2002'] / state_time['denom']
+        state_time['2003'] = state_time['2003'] / state_time['denom']
+        state_time['2004'] = state_time['2004'] / state_time['denom']
+        state_time['2005'] = state_time['2005'] / state_time['denom']
+        state_time['2006'] = state_time['2006'] / state_time['denom']
+        state_time['2007'] = state_time['2007'] / state_time['denom']
+        state_time['2008'] = state_time['2008'] / state_time['denom']
+        state_time['2009'] = state_time['2009'] / state_time['denom']
+        state_time['2010'] = state_time['2010'] / state_time['denom']
+        state_time['2011'] = state_time['2011'] / state_time['denom']
+        state_time['2012'] = state_time['2012'] / state_time['denom']
+        state_time['2013'] = state_time['2013'] / state_time['denom']
+        state_time['2014'] = state_time['2014'] / state_time['denom']
+        state_time['2015'] = state_time['2015'] / state_time['denom']
+        state_time['2016'] = state_time['2016'] / state_time['denom']
+        state_time['2017'] = state_time['2017'] / state_time['denom']
+        state_time['2018'] = state_time['2018'] / state_time['denom']
+        state_time['2019'] = state_time['2019'] / state_time['denom']
+        state_time['2020'] = state_time['2020'] / state_time['denom']
+
+        del state_time['denom']
+
+
+
+        col = time_df["Year"][0]
+        nation_stats = pd.DataFrame(state_time[f'{col}'])
+        nation_stats = nation_stats.sort_values(by=f'{col}',ascending=False).reset_index()
+        nation_stats['Rank'] = nation_stats[f'{col}'].rank(ascending=False).astype(int)
+        n_stat2 = nation_stats[nation_stats['State']==location]['Rank'].values[0]
+
         #-----Dataframe for Stat3-----#
         effect_df = pd.DataFrame(filtered['Effect'].value_counts()).reset_index()
         effect_df = effect_df.rename(
@@ -581,11 +793,36 @@ def update_cards_on_click(click_state):
 
         stat3 = round(effect_df['# Laws'][0] / effect_df['# Laws'].sum()*100,1)
 
+        #One hot encode law classes
+        nation_effect_df = test[['State','Effect']]
+        one_hot1 = pd.get_dummies(nation_effect_df['Effect'])
+        nation_effect_df = nation_effect_df.drop('Effect',axis=1)
+        nation_effect_df = nation_effect_df.join(one_hot1)
+
+
+        #sum up to state level
+        state_effect = nation_effect_df.groupby('State').sum()
+        state_effect.columns = state_effect.columns.astype(str)
+        state_effect['denom'] = state_effect.sum(axis=1)
+        
+        
+        state_effect['Permissive'] = state_effect['Permissive'] / state_effect['denom']
+        state_effect['Restrictive'] = state_effect['Restrictive'] / state_effect['denom']
+        
+        del state_effect['denom']
+
+
+
+        col = effect_df["Effect"][0]
+        nation_stats = pd.DataFrame(state_effect[col])
+        nation_stats = nation_stats.sort_values(by=col,ascending=False).reset_index()
+        nation_stats['Rank'] = nation_stats[col].rank(ascending=False).astype(int)
+        n_stat3 = nation_stats[nation_stats['State']==location]['Rank'].values[0]
+
         #---------- Set up all of the dynamic cards ----------#
         card_state_set_up = dbc.Card([
             dbc.CardBody([
-                html.P(f'The following 2 rows of stats pertain to {location}'),
-                html.H6(f'The first row are {location} specific stats while the second row compare to the nation as a whole.'),
+                html.P(f'{location} Metrics'),
 
             ])
         ],
@@ -601,6 +838,7 @@ def update_cards_on_click(click_state):
             dbc.CardBody([
                 html.P(f'Most Common Law'),
                 html.H6(f'{class_df["Law Class"][0]} ({stat1}%)'),
+                html.H6(f'State Rank: {n_stat1}')
             ])
         ],
         style={'display': 'inline-block',
@@ -615,6 +853,8 @@ def update_cards_on_click(click_state):
             dbc.CardBody([
                 html.P(f'Year Most Laws Passed'),
                 html.H6(f'{time_df["Year"][0]} ({stat2}%)'),
+                html.H6(f'State Rank: {n_stat2}')
+
             ])
         ],
         style={'display': 'inline-block',
@@ -629,6 +869,8 @@ def update_cards_on_click(click_state):
                 dbc.CardBody([
                     html.P(f'Most Common Law Effect'),
                     html.H6(f'{effect_df["Effect"][0]} ({stat3}%)'),
+                    html.H6(f'State Rank: {n_stat3}')
+
                 ])
             ],
             style={'display': 'inline-block',
@@ -704,7 +946,6 @@ def update_cards_on_click(click_state):
     Input('range_slider', 'value'),
     Input('dropdown1','value')
     
-
 ) 
 
 def update_cluster_map(slider_range_values,dd1):#,state_choice):
