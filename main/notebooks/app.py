@@ -261,10 +261,72 @@ app.layout = html.Div([
                 ])
             ]
         ),
-#Tab #3 --> Clustering
+#Tab #3 --> Cosine Similarity - Comparing Laws
 
-        dcc.Tab(label='Clustering',value='tab-3',style=tab_style, selected_style=tab_selected_style,
+        dcc.Tab(label='Cosine Similarity',value='tab-3',style=tab_style, selected_style=tab_selected_style,
             children=[
+                dbc.Row([
+                    dbc.Col([
+                        html.Label(dcc.Markdown('''**Choose Law Type:**'''),style={'color':'white'}),                        
+                        dcc.Dropdown(
+                            id='dropdown2',
+                            options=[{'label': i, 'value': i} for i in law_type_choices],
+                            value=law_type_choices[0],
+                        )
+                    ],width=6),
+                    dbc.Col([
+                        
+                    ],width=6)
+                ]),
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Graph(id='cosine_matrix')
+                    ],width=12)
+                ])                
+            ]
+        ),
+#Tab #4 --> Clustering
+
+        dcc.Tab(label='Clustering',value='tab-4',style=tab_style, selected_style=tab_selected_style,
+            children=[
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            dbc.Button("Click Here for Instructions", id="open3",color='secondary',style={"fontSize":18}),
+                            dbc.Modal([
+                                    dbc.ModalHeader("Descriptions"),
+                                    dbc.ModalBody(
+                                        children=[
+                                            html.P('Below is a scatter plot displaying the results from a cluster analysis with KPI metrics to help describe the cluster.  Each dot on the scatter plot represents a law.  Use the year range slider to filter the laws by year passed.'),
+                                            html.P('To view metrics for a particular cluster or to better visualize the cluster on the graph, use the dropdown menu to select your desired cluster.  The laws that fall into this cluster will highlight green and every other law will remain grey.')
+
+                                        ]
+                                    ),
+                                    dbc.ModalFooter(
+                                        dbc.Button("Close", id="close3", className="ml-auto")
+                                    ),
+                            ],id="modal3",size="md",scrollable=True),
+                        ],className="d-grid gap-2")
+                    ],width=6),
+                    dbc.Col([
+                        html.Div([
+                            dbc.Button("Click Here for Analysis", id="open4",color='secondary',style={"fontSize":18}),
+                            dbc.Modal([
+                                    dbc.ModalHeader("Descriptions"),
+                                    dbc.ModalBody(
+                                        children=[
+                                            html.P('Depending on how the year range filter is utilized, the application of clusters is defined a little differently for some combination of years.'),
+                                            html.P('However, there is a consistent trend for all variations of filters that the laws that fall into clusters with higher median population, higher median income, and generally higher median DEM vote share have lower suicide and homicide rates 3 years after the passing of the law.  Further, laws that fall into clusters with lower median population, lower median income, and generally higher median GOP vote share tend to have higher suicide rates, but not necessarily higher homicide rates 3 years after the passing of the law.')
+                                        ]
+                                    ),
+                                    dbc.ModalFooter(
+                                        dbc.Button("Close", id="close4", className="ml-auto")
+                                    ),
+                            ],id="modal4",size="md",scrollable=True),
+                        ],className="d-grid gap-2")
+
+                    ],width=6)
+                ]),
                 dbc.Row([
                     dbc.Col([
                         html.Label(dcc.Markdown('''**Choose a range of years:**'''),style={'color':'white'}),                        
@@ -272,6 +334,7 @@ app.layout = html.Div([
                                     id='range_slider',
                                     min=1991,
                                     max=2020,
+                                    marks=None,
                                     step=1,
                                     value=[1991, 2020],
                                     allowCross=False,
@@ -312,33 +375,7 @@ app.layout = html.Div([
                 ])
             ]
         ),
-#Tab #4 --> Cosine Similarity - Comparing Laws
 
-        dcc.Tab(label='Cosine Similarity',value='tab-4',style=tab_style, selected_style=tab_selected_style,
-            children=[
-                dbc.Row([
-                    dbc.Col([
-                        html.Label(dcc.Markdown('''**Choose Law Type:**'''),style={'color':'white'}),                        
-                        dcc.Dropdown(
-                            id='dropdown2',
-                            options=[{'label': i, 'value': i} for i in law_type_choices],
-                            value=law_type_choices[0],
-                        )
-                    ],width=6),
-                    dbc.Col([
-                        
-                    ],width=6)
-                ]),
-                dbc.Row([
-                    dbc.Col([
-                        dcc.Graph(id='cosine_matrix')
-                    ],width=6),
-                    dbc.Col([
-                        
-                    ],width=6)
-                ])                
-            ]
-        ),
 #Tab #5 --> Predicting Suicide and Homicide using text
 
         dcc.Tab(label='Prediction',value='tab-5',style=tab_style, selected_style=tab_selected_style,
@@ -409,6 +446,8 @@ def update_cards_on_click(click_state):
                     }
         )
         stat1 = class_df['# Laws'][0]
+        stat1_v2 = class_df['# Laws'][1]
+        stat1_test = np.where(stat1==stat1_v2,1,0).tolist()
 
         #One hot encode law classes
         nation_class_df = test[['State','Law Class']]
@@ -459,6 +498,8 @@ def update_cards_on_click(click_state):
                     }
         )
         stat3 = time_df['# Laws'][0]
+        stat3_v2 = time_df['# Laws'][1]
+        stat3_test = np.where(stat3==stat3_v2,1,0).tolist()
         
         #One hot encode law classes
         nation_time_df = test[['State','Year']]
@@ -478,21 +519,37 @@ def update_cards_on_click(click_state):
 
 
 #---------- Metrics ----------#
-
-        card_a = dbc.Card([
-            dbc.CardBody([
-                html.P(f'Most Common Type of Law ({st_abb})'),
-                html.H6(f'{class_df["Law Class"][0]} ({stat1} Laws)'),
-                html.H6(f'# Laws State Rank: {n_stat1}/51')
-            ])
-        ],
-        style={'display': 'inline-block',
-                'text-align': 'center',
-                'background-color': '#70747c',
-                'color':'white',
-                'fontWeight': 'bold',
-                'fontSize':20},
-        outline=True)
+        if stat1_test == 1:
+            print('yes')
+            card_a = dbc.Card([
+                dbc.CardBody([
+                    html.P(f'Most Common Type of Law ({st_abb})'),
+                    html.H6(f'Tie ({stat1} Laws)'),
+                    html.H6(f'# Laws State Rank: {n_stat1}/51')
+                ])
+            ],
+            style={'display': 'inline-block',
+                    'text-align': 'center',
+                    'background-color': '#70747c',
+                    'color':'white',
+                    'fontWeight': 'bold',
+                    'fontSize':20},
+            outline=True)
+        else:
+            card_a = dbc.Card([
+                dbc.CardBody([
+                    html.P(f'Most Common Type of Law ({st_abb})'),
+                    html.H6(f'{class_df["Law Class"][0]} ({stat1} Laws)'),
+                    html.H6(f'# Laws State Rank: {n_stat1}/51')
+                ])
+            ],
+            style={'display': 'inline-block',
+                    'text-align': 'center',
+                    'background-color': '#70747c',
+                    'color':'white',
+                    'fontWeight': 'bold',
+                    'fontSize':20},
+            outline=True)
 
         card_b = dbc.Card([
             dbc.CardBody([
@@ -510,21 +567,38 @@ def update_cards_on_click(click_state):
                 'fontSize':20},
         outline=True)
 
-        card_c = dbc.Card([
-            dbc.CardBody([
-                html.P(f'Year Most Laws Passed ({st_abb})'),
-                html.H6(f'{time_df["Year"][0]} ({stat3} Laws)'),
-                html.H6(f'# Laws in {time_df["Year"][0]} State Rank: {n_stat3}/51')
+        if stat3_test ==1:
+            card_c = dbc.Card([
+                dbc.CardBody([
+                    html.P(f'Year Most Laws Passed ({st_abb})'),
+                    html.H6(f'Tie ({stat3} Laws)'),
+                    html.H6(f'# Laws in {time_df["Year"][0]} State Rank: {n_stat3}/51')
 
-            ])
-        ],
-        style={'display': 'inline-block',
-                'text-align': 'center',
-                'background-color': '#70747c',
-                'color':'white',
-                'fontWeight': 'bold',
-                'fontSize':20},
-        outline=True)
+                ])
+            ],
+            style={'display': 'inline-block',
+                    'text-align': 'center',
+                    'background-color': '#70747c',
+                    'color':'white',
+                    'fontWeight': 'bold',
+                    'fontSize':20},
+            outline=True)
+        else:
+            card_c = dbc.Card([
+                dbc.CardBody([
+                    html.P(f'Year Most Laws Passed ({st_abb})'),
+                    html.H6(f'{time_df["Year"][0]} ({stat3} Laws)'),
+                    html.H6(f'# Laws in {time_df["Year"][0]} State Rank: {n_stat3}/51')
+
+                ])
+            ],
+            style={'display': 'inline-block',
+                    'text-align': 'center',
+                    'background-color': '#70747c',
+                    'color':'white',
+                    'fontWeight': 'bold',
+                    'fontSize':20},
+            outline=True)
         
         return card_a, card_b, card_c
 
@@ -545,6 +619,8 @@ def update_cards_on_click(click_state):
                     }
         )
         stat1 = class_df['# Laws'][0] 
+        stat1_v2 = class_df['# Laws'][1]
+        stat1_test = np.where(stat1==stat1_v2,1,0).tolist()
 
         #One hot encode law classes
         nation_class_df = test[['State','Law Class']]
@@ -598,7 +674,9 @@ def update_cards_on_click(click_state):
                     }
         )
         
-        stat3 = time_df['# Laws'][0] 
+        stat3 = time_df['# Laws'][0]
+        stat3_v2 = time_df['# Laws'][1]
+        stat3_test = np.where(stat3==stat3_v2,1,0).tolist()
 
         #One hot encode law classes
         nation_time_df = test[['State','Year']]
@@ -617,21 +695,36 @@ def update_cards_on_click(click_state):
         n_stat3 = nation_stats[nation_stats['State']==location]['Rank'].values[0]
 
         #---------- Set up all of the dynamic cards ----------#
-
-        card_a = dbc.Card([
-            dbc.CardBody([
-                html.P(f'Most Common Type of Law ({st_abb})'),
-                html.H6(f'{class_df["Law Class"][0]} ({stat1} Laws)'),
-                html.H6(f'# Laws State Rank: {n_stat1}/51')
-            ])
-        ],
-        style={'display': 'inline-block',
-                'text-align': 'center',
-                'background-color': '#70747c',
-                'color':'white',
-                'fontWeight': 'bold',
-                'fontSize':20},
-        outline=True)
+        if stat1_test ==1:
+            card_a = dbc.Card([
+                dbc.CardBody([
+                    html.P(f'Most Common Type of Law ({st_abb})'),
+                    html.H6(f'Tie ({stat1} Laws)'),
+                    html.H6(f'# Laws State Rank: {n_stat1}/51')
+                ])
+            ],
+            style={'display': 'inline-block',
+                    'text-align': 'center',
+                    'background-color': '#70747c',
+                    'color':'white',
+                    'fontWeight': 'bold',
+                    'fontSize':20},
+            outline=True)
+        else:
+            card_a = dbc.Card([
+                dbc.CardBody([
+                    html.P(f'Most Common Type of Law ({st_abb})'),
+                    html.H6(f'{class_df["Law Class"][0]} ({stat1} Laws)'),
+                    html.H6(f'# Laws State Rank: {n_stat1}/51')
+                ])
+            ],
+            style={'display': 'inline-block',
+                    'text-align': 'center',
+                    'background-color': '#70747c',
+                    'color':'white',
+                    'fontWeight': 'bold',
+                    'fontSize':20},
+            outline=True)
 
         ####### FIX THIS!!!!!!! ######
         if stat2_test != 0.5:
@@ -667,28 +760,91 @@ def update_cards_on_click(click_state):
                     'fontSize':20},
             outline=True)
 
+        if stat3_test == 1:
+            card_c = dbc.Card([
+                dbc.CardBody([
+                    html.P(f'Year Most Laws Passed ({st_abb})'),
+                    html.H6(f'Tie ({stat3} Laws)'),
+                    html.H6(f'# Laws in {time_df["Year"][0]} State Rank: {n_stat3}/51')
 
-        card_c = dbc.Card([
-            dbc.CardBody([
-                html.P(f'Year Most Laws Passed ({st_abb})'),
-                html.H6(f'{time_df["Year"][0]} ({stat3} Laws)'),
-                html.H6(f'# Laws in {time_df["Year"][0]} State Rank: {n_stat3}/51')
+                ])
+            ],
+            style={'display': 'inline-block',
+                    'text-align': 'center',
+                    'background-color': '#70747c',
+                    'color':'white',
+                    'fontWeight': 'bold',
+                    'fontSize':20},
+            outline=True)
+        else:
+            card_c = dbc.Card([
+                dbc.CardBody([
+                    html.P(f'Year Most Laws Passed ({st_abb})'),
+                    html.H6(f'{time_df["Year"][0]} ({stat3} Laws)'),
+                    html.H6(f'# Laws in {time_df["Year"][0]} State Rank: {n_stat3}/51')
 
-            ])
-        ],
-        style={'display': 'inline-block',
-                'text-align': 'center',
-                'background-color': '#70747c',
-                'color':'white',
-                'fontWeight': 'bold',
-                'fontSize':20},
-        outline=True)
+                ])
+            ],
+            style={'display': 'inline-block',
+                    'text-align': 'center',
+                    'background-color': '#70747c',
+                    'color':'white',
+                    'fontWeight': 'bold',
+                    'fontSize':20},
+            outline=True)
 
         return card_a, card_b, card_c
 
-#-----------------------------Tab #3: Clustering -----------------------------#
+#-----------------------------Tab #3: Cosine Similarity Matrix for Law Types -----------------------------#
 
+@app.callback(
+    Output('cosine_matrix', 'figure'), 
+    Input('dropdown2','value')
+) 
+
+def update_matrix(dd2):#,state_choice):
+    filtered = law_df[law_df['Law Class']==dd2]
+    filtered = filtered[filtered['ST']!="DC"]
+
+    #Step 1: Take content column and convert to a list
+    lg_list = filtered['Content_cleaned'].tolist()
+
+    #Step 2: Create the Document Term Matrix
+    count_vectorizer = CountVectorizer()
+    sparse_matrix = count_vectorizer.fit_transform(lg_list)
+
+    doc_term_matrix = sparse_matrix.todense()
+    df_test = pd.DataFrame(
+        doc_term_matrix, 
+        columns=count_vectorizer.get_feature_names()
+    )
+
+    #Step 3: Set up matrix
+    array = cosine_similarity(df_test, df_test)
+    matrix = pd.DataFrame(array,columns=filtered['Law ID'].tolist()) 
     
+    mask = np.triu(np.ones_like(matrix, dtype=bool))
+    triangle = matrix.mask(mask)
+
+    fig = px.imshow(
+        triangle, 
+        text_auto=True, 
+        aspect="auto",
+        x=triangle.columns,
+        y=triangle.columns,
+        template='plotly_dark',
+        color_continuous_scale="Viridis",
+        labels={
+            'color':'Cosine Similarity'
+        },
+        zmin=0,
+        zmax=1
+
+    )
+
+    return fig
+
+#-----------------------------Tab #4: Clustering -----------------------------#
 
 
 #Configure reactivity of cluster map controlled by range slider
@@ -707,9 +863,9 @@ def update_cards_on_click(click_state):
 def update_cluster_map(slider_range_values,dd1):#,state_choice):
     filtered = cluster_df[(cluster_df['Year']>=slider_range_values[0]) & (cluster_df['Year']<=slider_range_values[1])]
     #filtered = cluster_df[(cluster_df['Year']>=1991) & (cluster_df['Year']<=2020)]
-    
+    #763
 
-    X = filtered#[fixed_names]
+    X = filtered.copy()#[fixed_names]
     del X['Law ID'], X['UniqueID'], X['ST'], X['Suicides'], X['Homicides'], X['HomicidesB3'], X['SuicidesB3']
 
     #Step 2.) Imputation needed
@@ -761,7 +917,7 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
     not_states_fixed['State'] = state_list
 
     X = not_states_fixed
-
+    X['Law ID'] = filtered['Law ID']
     
     #This is the filtered list that gets populated in the dropdown box
     cluster_list = X['cluster'].unique().tolist()
@@ -773,37 +929,13 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
     sortedX['cluster'] = sortedX['cluster'].astype('str')
     sortedX['cluster_num'] = sortedX['cluster'].astype(int)
 
-
-
-
-    # def assign_color(value):
-    #     float_value = float(value)
-    #     if float_value >= 1:
-    #         return "rgba(108, 102, 137, 1)"
-    #     elif float_value == 2:
-    #         return "rgba(210, 215, 211, 1)"
-    #     elif float_value == 3:
-    #         return "rgba(238, 238, 238, 1)"
-    #     elif float_value == 4:
-    #         return "rgba(108, 122, 137, 1)"
-    #     elif float_value == 5:
-    #         return "rgba(236, 240, 241, 1)"
-    #     elif float_value == 6:
-    #         return "rgba(149, 165, 166, 1)"
-    #     elif float_value == 7:
-    #         return "rgba(191, 191, 191, 1)"
-    #     else:
-    #         return "rgba(189, 195, 199, 1)"
-
-    #sortedX.to_csv('test_X.csv', index=False)
-    #sortedX['color'] = sortedX.apply(lambda x: assign_color(x["cluster_num"]), axis = 1)
     sortedX['color'] = np.where(sortedX['cluster_num']==int(dd1[-1]),'rgba(46, 204, 113, 1)','rgba(108, 102, 137, 1)')
     
     fig = px.scatter(
         sortedX,
         x="SuicidesA3", 
         y="HomicidesA3", 
-        #hover_name = "cluster",
+        #hover_name = 'Law ID',
         hover_data = {
             "State":True,
             "Year":True,
@@ -900,55 +1032,6 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
     return fig, [{'label':i,'value':i} for i in new_cluster_list], card1, card2, card3a, card3b
     
 
-#-----------------------------Tab #4: Cosine Similarity Matrix for Law Types -----------------------------#
-
-@app.callback(
-    Output('cosine_matrix', 'figure'), 
-    Input('dropdown2','value')
-) 
-
-def update_matrix(dd2):#,state_choice):
-    filtered = law_df[law_df['Law Class']==dd2]
-    filtered = filtered[filtered['ST']!="DC"]
-
-    #Step 1: Take content column and convert to a list
-    lg_list = filtered['Content_cleaned'].tolist()
-
-    #Step 2: Create the Document Term Matrix
-    count_vectorizer = CountVectorizer()
-    sparse_matrix = count_vectorizer.fit_transform(lg_list)
-
-    doc_term_matrix = sparse_matrix.todense()
-    df_test = pd.DataFrame(
-        doc_term_matrix, 
-        columns=count_vectorizer.get_feature_names()
-    )
-
-    #Step 3: Set up matrix
-    array = cosine_similarity(df_test, df_test)
-    matrix = pd.DataFrame(array,columns=filtered['Law ID'].tolist()) 
-    
-    mask = np.triu(np.ones_like(matrix, dtype=bool))
-    triangle = matrix.mask(mask)
-
-    fig = px.imshow(
-        triangle, 
-        text_auto=True, 
-        aspect="auto",
-        x=triangle.columns,
-        y=triangle.columns,
-        template='plotly_dark',
-        color_continuous_scale="Viridis",
-        labels={
-            'color':'Cosine Similarity'
-        },
-        zmin=0,
-        zmax=1
-
-    )
-
-    return fig
-
     
 #----------Configure reactivity for Instructions Button #1 --> Tab #2----------#
 @app.callback(
@@ -963,7 +1046,7 @@ def toggle_modal1(n1, n2, is_open):
         return not is_open
     return is_open
 
-#----------Configure reactivity for Law Details Button #2 --> Tab #2----------#
+#----------Configure reactivity for Instructions Button #2 --> Tab #2----------#
 @app.callback(
     Output("modal2", "is_open"),
     Input("open2", "n_clicks"), 
@@ -976,7 +1059,7 @@ def toggle_modal2(n1, n2, is_open):
         return not is_open
     return is_open
 
-#----------Configure reactivity for Specific Law Details Button #3 --> Tab #4----------#
+#----------Configure reactivity for Instructions Button #3 --> Tab #4----------#
 @app.callback(
     Output("modal3", "is_open"),
     Input("open3", "n_clicks"), 
@@ -989,6 +1072,19 @@ def toggle_modal3(n1, n2, is_open):
         return not is_open
     return is_open
 
+
+#----------Configure reactivity for Instructions Button #4 --> Tab #4----------#
+@app.callback(
+    Output("modal4", "is_open"),
+    Input("open4", "n_clicks"), 
+    Input("close4", "n_clicks"),
+    State("modal4", "is_open")
+)
+
+def toggle_modal4(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
 
 
 if __name__=='__main__':
