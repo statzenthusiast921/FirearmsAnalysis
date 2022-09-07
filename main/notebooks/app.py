@@ -23,6 +23,7 @@ from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from sklearn.feature_extraction.text import CountVectorizer
 count_vectorizer = CountVectorizer(stop_words='english')
 from sklearn.metrics.pairwise import cosine_similarity
+from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
 
 #from dash import dash_table as dt
 
@@ -43,6 +44,8 @@ law_df = law_df[law_df['Effective Date'].notnull()]
 
 law_type_choices = law_df['Law Class'].unique()
 law_list_choices = law_df['Law ID'].unique()
+
+
 #Fix Mississippi and DC labels
 law_df['State'] = np.where(law_df['State']=='MIssissippi', 'Mississippi', law_df['State'])
 law_df['State'] = np.where(law_df['State']=='DIstrict of Columbia', 'District of Columbia', law_df['State'])
@@ -272,16 +275,34 @@ app.layout = html.Div([
                             id='dropdown2',
                             options=[{'label': i, 'value': i} for i in law_type_choices],
                             value=law_type_choices[0],
-                        )
+                        ),
+                        html.P('compare the 2 laws with other metrics'),
+                        html.P('word cloud, bigrams')
                     ],width=6),
                     dbc.Col([
-                        
-                    ],width=6)
+                        html.Label(dcc.Markdown('''**Choose Law #1:**'''),style={'color':'white'}),                        
+                        dcc.Dropdown(
+                            id='dropdown3',
+                            options=[{'label': i, 'value': i} for i in law_list_choices],
+                            value=law_list_choices[0],
+                        ),
+                    ],width=3),
+                    dbc.Col([
+                        html.Label(dcc.Markdown('''**Choose Law #2:**'''),style={'color':'white'}),                        
+                        dcc.Dropdown(
+                            id='dropdown4',
+                            options=[{'label': i, 'value': i} for i in law_list_choices],
+                            value=law_list_choices[1],
+                        ),
+                    ],width=3)
                 ]),
                 dbc.Row([
                     dbc.Col([
                         dcc.Graph(id='cosine_matrix')
-                    ],width=12)
+                    ],width=6),
+                    dbc.Col([
+                        dcc.Graph(id='law_word_cloud', figure={}, config={'displayModeBar': False})
+                    ],width=6)
                 ])                
             ]
         ),
@@ -382,6 +403,7 @@ app.layout = html.Div([
             children=[
                 dbc.Row([
                     dbc.Col([
+                        html.P('this has to be a time series, right? move the suicides and homicides data ahead 3 years')
                     ])
                 ])
             ]
@@ -795,7 +817,24 @@ def update_cards_on_click(click_state):
 
         return card_a, card_b, card_c
 
-#-----------------------------Tab #3: Cosine Similarity Matrix for Law Types -----------------------------#
+#-----------------------------Tab #3: Cosine Similarity Matrix and Word Cloud -----------------------------#
+@app.callback(
+    Output('dropdown3', 'options'), #--> filter laws
+    Output('dropdown3', 'value'), 
+    Input('dropdown2', 'value') #--> choose law type
+)
+def set_law_options2(selected_law_type):
+    return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law_type]], law_type_id_dict[selected_law_type][0]
+
+
+@app.callback(
+    Output('dropdown4', 'options'), #--> filter laws
+    Output('dropdown4', 'value'), 
+    Input('dropdown2', 'value') #--> choose law type
+)
+def set_law_options1(selected_law_type):
+    return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law_type]], law_type_id_dict[selected_law_type][1]
+
 
 @app.callback(
     Output('cosine_matrix', 'figure'), 
@@ -844,6 +883,43 @@ def update_matrix(dd2):#,state_choice):
 
     return fig
 
+
+@app.callback(
+    Output('law_word_cloud', 'figure'),
+    Input('dropdown2', 'value'), 
+    Input('dropdown3', 'value'),
+    Input('dropdown4', 'value') 
+
+)
+def law_word_cloud(dd2, dd3, dd4):
+    filtered = law_df[law_df['Law Class']==dd2]
+    filtered = filtered[filtered['Law ID'].isin([dd3, dd4])]
+    filtered = filtered[filtered['ST']!="DC"]
+
+    dff = filtered.copy()
+    dff = dff['Content_cleaned']
+    
+    my_wordcloud = WordCloud(
+        background_color='black',
+        height=275,
+        min_word_length = 4,
+
+    ).generate(' '.join(dff))
+
+    fig_wordcloud = px.imshow(
+        my_wordcloud,
+        template='plotly_dark',
+        title=f"Words Used In {dd3}, {dd4}"
+    )
+    fig_wordcloud.update_layout(margin=dict(l=0, r=0, t=30, b=0))
+    fig_wordcloud.update_xaxes(visible=False)
+    fig_wordcloud.update_yaxes(visible=False)
+
+    return fig_wordcloud
+
+
+
+
 #-----------------------------Tab #4: Clustering -----------------------------#
 
 
@@ -863,9 +939,10 @@ def update_matrix(dd2):#,state_choice):
 def update_cluster_map(slider_range_values,dd1):#,state_choice):
     filtered = cluster_df[(cluster_df['Year']>=slider_range_values[0]) & (cluster_df['Year']<=slider_range_values[1])]
     #filtered = cluster_df[(cluster_df['Year']>=1991) & (cluster_df['Year']<=2020)]
-    #763
-
+    filtered = filtered.reset_index()
+    index_df = filtered[['index','Law ID']]
     X = filtered.copy()#[fixed_names]
+
     del X['Law ID'], X['UniqueID'], X['ST'], X['Suicides'], X['Homicides'], X['HomicidesB3'], X['SuicidesB3']
 
     #Step 2.) Imputation needed
@@ -917,7 +994,14 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
     not_states_fixed['State'] = state_list
 
     X = not_states_fixed
-    X['Law ID'] = filtered['Law ID']
+
+    X = pd.merge(
+        X,
+        index_df,
+        how='inner',
+        on=['index']
+    )
+
     
     #This is the filtered list that gets populated in the dropdown box
     cluster_list = X['cluster'].unique().tolist()
@@ -935,7 +1019,7 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
         sortedX,
         x="SuicidesA3", 
         y="HomicidesA3", 
-        #hover_name = 'Law ID',
+        hover_name = 'Law ID',
         hover_data = {
             "State":True,
             "Year":True,
