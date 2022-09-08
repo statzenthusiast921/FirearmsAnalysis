@@ -2,7 +2,10 @@
 
 ### Description
 
-The purpose of this project is to analyze and find relationships between state-level firearms legislation and the firearm-related homicide and suicides rates by state and year. 
+The purpose of this project is to:
+- 1.) Explore the similarity in the text of the firearm laws and determine if any regional relationships exist.
+- 2.) Discover patterns in the text and determine the relative importance of certain words.
+- 3.) Determine if any latent groupings of laws exist when including regional, demographic data.
 
 ### Link
 
