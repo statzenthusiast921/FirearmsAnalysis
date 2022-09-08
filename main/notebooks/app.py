@@ -81,25 +81,6 @@ df_for_dict = df_for_dict.drop_duplicates(subset='State',keep='first')
 year_state_dict = df_for_dict.groupby('Year')['State'].apply(list).to_dict()
 year_state_dict_sorted = {l: sorted(m) for l, m in year_state_dict.items()} #sort value by list
 
-test = law_df[law_df['Year']>=1991]
-map_df = pd.DataFrame(test[['State','ST']].value_counts()).reset_index()
-map_df = map_df.rename(columns={0: 'Count'})
-
-fig = px.choropleth(map_df,
-                        locations='ST',
-                        color='Count',
-                        template='plotly_dark',
-                        hover_name='State',
-                        locationmode='USA-states',
-                        color_continuous_scale="Viridis",
-                        labels={
-                                'Count':'# Laws Passed',
-                                'ST':'State'
-                        },
-                        scope='usa')
-fig.update_layout(
-    margin={"r":0,"t":35,"l":0,"b":0},
-    title_text='# Firearm Laws Passed by State (1991-2020)', title_x=0.5)
 
 tabs_styles = {
     'height': '44px'
@@ -171,34 +152,25 @@ app.layout = html.Div([
                        html.P("3.) ",style={'color':'white'})
 
                    ])
-
-
                ]),
-#Tab #2 --> State Level Legislation
 
-        dcc.Tab(label='State-Level Legislation',value='tab-2',style=tab_style, selected_style=tab_selected_style,
+#Tab #3 --> Exploratory Analysis
+
+        dcc.Tab(label='Exploratory Analysis',value='tab-2',style=tab_style, selected_style=tab_selected_style,
             children=[
                 dbc.Row([
                     dbc.Col([
-                        html.Div([
-                            dbc.Button("Click Here for Instructions", id="open2",color='secondary',style={"fontSize":18}),
-                            dbc.Modal([
-                                    dbc.ModalHeader("Descriptions"),
-                                    dbc.ModalBody(
-                                        children=[
-                                            html.P('Click any state on the map to reveal statistics detailing the type and frequency of laws passed in that state.')
-                                        ]
-                                    ),
-                                    dbc.ModalFooter(
-                                        dbc.Button("Close", id="close2", className="ml-auto")
-                                    ),
-                            ],id="modal2",size="md",scrollable=True),
-                        ],className="d-grid gap-2")
-
+                        html.Label(dcc.Markdown('''**Choose Law Type:**'''),style={'color':'white'}),                        
+                        dcc.Dropdown(
+                            id='dropdown2',
+                            options=[{'label': i, 'value': i} for i in law_type_choices],
+                            value=law_type_choices[0],
+                        )
                     ],width=6),
                     dbc.Col([
+                        html.Label(dcc.Markdown('''**Click button below for more information:**'''),style={'color':'white'}),                        
                         html.Div([
-                            dbc.Button("Click Here for Law Descriptions", id="open1",color='secondary',style={"fontSize":18}),
+                            dbc.Button("Law Descriptions", id="open1",color='secondary',style={"fontSize":18}),
                                 dbc.Modal([
                                     dbc.ModalHeader("Descriptions"),
                                     dbc.ModalBody(
@@ -244,71 +216,23 @@ app.layout = html.Div([
                                     ),
                                 ],id="modal1",size="xl",scrollable=True),
                         ],className="d-grid gap-2"),
-                    ],width=6),
-                    dbc.Row([
-                        dbc.Col([
-                            dbc.Card(id='card_a')
-                        ],width=4),
-                        dbc.Col([
-                            dbc.Card(id='card_b'),
-                        ],width=4),
-                        dbc.Col([
-                            dbc.Card(id='card_c')
-                        ],width=4)
-                    ]),
-                    dbc.Row([
-                        dbc.Col([
-                            dcc.Graph(id='state_law_freq_map',figure = fig)
-                        ],width=12)
-                    ])
-                ])
-            ]
-        ),
-#Tab #3 --> Cosine Similarity - Comparing Laws
 
-        dcc.Tab(label='Cosine Similarity',value='tab-3',style=tab_style, selected_style=tab_selected_style,
-            children=[
-                dbc.Row([
-                    dbc.Col([
-                        html.Label(dcc.Markdown('''**Choose Law Type:**'''),style={'color':'white'}),                        
-                        dcc.Dropdown(
-                            id='dropdown2',
-                            options=[{'label': i, 'value': i} for i in law_type_choices],
-                            value=law_type_choices[0],
-                        ),
-                        html.P('compare the 2 laws with other metrics'),
-                        html.P('word cloud, bigrams')
-                    ],width=6),
-                    dbc.Col([
-                        html.Label(dcc.Markdown('''**Choose Law #1:**'''),style={'color':'white'}),                        
-                        dcc.Dropdown(
-                            id='dropdown3',
-                            options=[{'label': i, 'value': i} for i in law_list_choices],
-                            value=law_list_choices[0],
-                        ),
-                    ],width=3),
-                    dbc.Col([
-                        html.Label(dcc.Markdown('''**Choose Law #2:**'''),style={'color':'white'}),                        
-                        dcc.Dropdown(
-                            id='dropdown4',
-                            options=[{'label': i, 'value': i} for i in law_list_choices],
-                            value=law_list_choices[1],
-                        ),
-                    ],width=3)
+                    ])
+                   
                 ]),
                 dbc.Row([
                     dbc.Col([
                         dcc.Graph(id='cosine_matrix')
                     ],width=6),
                     dbc.Col([
-                        dcc.Graph(id='law_word_cloud', figure={}, config={'displayModeBar': False})
+                        dcc.Graph(id='law_map')
                     ],width=6)
                 ])                
             ]
         ),
 #Tab #4 --> Clustering
 
-        dcc.Tab(label='Clustering',value='tab-4',style=tab_style, selected_style=tab_selected_style,
+        dcc.Tab(label='Clustering',value='tab-3',style=tab_style, selected_style=tab_selected_style,
             children=[
                 dbc.Row([
                     dbc.Col([
@@ -399,7 +323,7 @@ app.layout = html.Div([
 
 #Tab #5 --> Predicting Suicide and Homicide using text
 
-        dcc.Tab(label='Prediction',value='tab-5',style=tab_style, selected_style=tab_selected_style,
+        dcc.Tab(label='Prediction',value='tab-4',style=tab_style, selected_style=tab_selected_style,
             children=[
                 dbc.Row([
                     dbc.Col([
@@ -435,10 +359,10 @@ def render_content(tab):
         return html.Div([
             html.H3('Tab content 4')
         ])
-    elif tab == 'tab-5':
-        return html.Div([
-            html.H3('Tab content 5')
-        ])
+    # elif tab == 'tab-5':
+    #     return html.Div([
+    #         html.H3('Tab content 5')
+    #     ])
 
 
 #-------------------------- Tab #2: Descriptive Analysis on Laws --------------------------#
@@ -817,23 +741,8 @@ def update_cards_on_click(click_state):
 
         return card_a, card_b, card_c
 
-#-----------------------------Tab #3: Cosine Similarity Matrix and Word Cloud -----------------------------#
-@app.callback(
-    Output('dropdown3', 'options'), #--> filter laws
-    Output('dropdown3', 'value'), 
-    Input('dropdown2', 'value') #--> choose law type
-)
-def set_law_options2(selected_law_type):
-    return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law_type]], law_type_id_dict[selected_law_type][0]
+#-----------------------------Tab #3: Exploratory Analysis -----------------------------#
 
-
-@app.callback(
-    Output('dropdown4', 'options'), #--> filter laws
-    Output('dropdown4', 'value'), 
-    Input('dropdown2', 'value') #--> choose law type
-)
-def set_law_options1(selected_law_type):
-    return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law_type]], law_type_id_dict[selected_law_type][1]
 
 
 @app.callback(
@@ -855,7 +764,7 @@ def update_matrix(dd2):#,state_choice):
     doc_term_matrix = sparse_matrix.todense()
     df_test = pd.DataFrame(
         doc_term_matrix, 
-        columns=count_vectorizer.get_feature_names()
+        columns=count_vectorizer.get_feature_names_out()
     )
 
     #Step 3: Set up matrix
@@ -883,43 +792,35 @@ def update_matrix(dd2):#,state_choice):
 
     return fig
 
-
 @app.callback(
-    Output('law_word_cloud', 'figure'),
-    Input('dropdown2', 'value'), 
-    Input('dropdown3', 'value'),
-    Input('dropdown4', 'value') 
-
+    Output('law_map', 'figure'), 
+    Input('dropdown2','value')
 )
-def law_word_cloud(dd2, dd3, dd4):
+def law_map_function(dd2):
     filtered = law_df[law_df['Law Class']==dd2]
-    filtered = filtered[filtered['Law ID'].isin([dd3, dd4])]
+    #filtered = law_df[law_df['Law Class']=='castle doctrine']
     filtered = filtered[filtered['ST']!="DC"]
 
-    dff = filtered.copy()
-    dff = dff['Content_cleaned']
-    
-    my_wordcloud = WordCloud(
-        background_color='black',
-        height=275,
-        min_word_length = 4,
+    filtered = filtered[filtered['Year']>=1991]
+    map_df = pd.DataFrame(filtered[['State','ST']].value_counts()).reset_index()
+    map_df = map_df.rename(columns={0: 'Count'})
 
-    ).generate(' '.join(dff))
+    fig = px.choropleth(map_df,
+                            locations='ST',
+                            color='Count',
+                            template='plotly_dark',
+                            hover_name='State',
+                            locationmode='USA-states',
+                            color_continuous_scale="Viridis",
+                            title = f'# {dd2} Laws Passed by State (1991-2020)',
+                            labels={
+                                    'Count':'# Laws Passed',
+                                    'ST':'State'
+                            },
+                            scope='usa')
+  
 
-    fig_wordcloud = px.imshow(
-        my_wordcloud,
-        template='plotly_dark',
-        title=f"Words Used In {dd3}, {dd4}"
-    )
-    fig_wordcloud.update_layout(margin=dict(l=0, r=0, t=30, b=0))
-    fig_wordcloud.update_xaxes(visible=False)
-    fig_wordcloud.update_yaxes(visible=False)
-
-    return fig_wordcloud
-
-
-
-
+    return fig
 #-----------------------------Tab #4: Clustering -----------------------------#
 
 
@@ -1130,18 +1031,6 @@ def toggle_modal1(n1, n2, is_open):
         return not is_open
     return is_open
 
-#----------Configure reactivity for Instructions Button #2 --> Tab #2----------#
-@app.callback(
-    Output("modal2", "is_open"),
-    Input("open2", "n_clicks"), 
-    Input("close2", "n_clicks"),
-    State("modal2", "is_open")
-)
-
-def toggle_modal2(n1, n2, is_open):
-    if n1 or n2:
-        return not is_open
-    return is_open
 
 #----------Configure reactivity for Instructions Button #3 --> Tab #4----------#
 @app.callback(
