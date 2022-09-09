@@ -81,6 +81,19 @@ df_for_dict = df_for_dict.drop_duplicates(subset='State',keep='first')
 year_state_dict = df_for_dict.groupby('Year')['State'].apply(list).to_dict()
 year_state_dict_sorted = {l: sorted(m) for l, m in year_state_dict.items()} #sort value by list
 
+# Defining a function to visualise n-grams
+def get_top_ngram(corpus, n=None):
+    vec = CountVectorizer(ngram_range=(n, n)).fit(corpus)
+    bag_of_words = vec.transform(corpus)
+    sum_words = bag_of_words.sum(axis=0) 
+    words_freq = [(word, sum_words[0, idx]) 
+                  for word, idx in vec.vocabulary_.items()]
+    words_freq =sorted(words_freq, key = lambda x: x[1], reverse=True)
+    return words_freq[:10]
+
+
+
+
 
 tabs_styles = {
     'height': '44px'
@@ -122,9 +135,11 @@ app.layout = html.Div([
                    ],style={'text-decoration': 'underline'}),
                    html.Div([
                        html.P("This dashboard was created as a tool to: ",style={'color':'white'}),
-                       html.P("1.) Understand the types of firearm laws passed in each state and over time",style={'color':'white'}),
-                       html.P("2.) Find relationships between state-level firearms legislation and the firearm-related homicide and suicides rates by state and year after the laws were passed.",style={'color':'white'}),
-                       html.P("3.) Determine the level of similarity between the text of any two laws and their impacts on suicide and homicide rates following their passage.",style={'color':'white'}),
+                       html.P("1.) Explore the similarity in the text of the laws and determine if any regional relationships exist",style={'color':'white'}),
+                       html.P("2.) Discover patterns in the text and determine the relative importance of certain words.",style={'color':'white'}),
+                       html.P("3.) Determine if any latent groupings of laws exist when including regional, demographic data as well as sentiment data.",style={'color':'white'}),
+                       html.P("4.) [Verb] A fourth thing.",style={'color':'white'}),
+
 
 
                        html.Br()
@@ -154,10 +169,46 @@ app.layout = html.Div([
                    ])
                ]),
 
-#Tab #3 --> Exploratory Analysis
+#Tab #2 --> Exploratory Analysis
 
         dcc.Tab(label='Exploratory Analysis',value='tab-2',style=tab_style, selected_style=tab_selected_style,
             children=[
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            dbc.Button("Click Here for Instructions", id="open1",color='secondary',style={"fontSize":18}),
+                            dbc.Modal([
+                                    dbc.ModalHeader("Descriptions"),
+                                    dbc.ModalBody(
+                                        children=[
+                                            html.P('Blah.')
+
+                                        ]
+                                    ),
+                                    dbc.ModalFooter(
+                                        dbc.Button("Close", id="close1", className="ml-auto")
+                                    ),
+                            ],id="modal1",size="md",scrollable=True),
+                        ],className="d-grid gap-2")
+                    ],width=6),
+                    dbc.Col([
+                        html.Div([
+                            dbc.Button("Click Here for Analysis", id="open2",color='secondary',style={"fontSize":18}),
+                            dbc.Modal([
+                                    dbc.ModalHeader("Descriptions"),
+                                    dbc.ModalBody(
+                                        children=[
+                                            html.P('Blah')
+                                        ]
+                                    ),
+                                    dbc.ModalFooter(
+                                        dbc.Button("Close", id="close2", className="ml-auto")
+                                    ),
+                            ],id="modal2",size="md",scrollable=True),
+                        ],className="d-grid gap-2")
+
+                    ],width=6)
+                ]),
                 dbc.Row([
                     dbc.Col([
                         html.Label(dcc.Markdown('''**Choose Law Type:**'''),style={'color':'white'}),                        
@@ -168,9 +219,10 @@ app.layout = html.Div([
                         )
                     ],width=6),
                     dbc.Col([
-                        html.Label(dcc.Markdown('''**Click button below for more information:**'''),style={'color':'white'}),                        
+                        #Figure out a better solution here!
+                        html.Label(dcc.Markdown('''**Invisible Text**'''),style={'color':'black'}),                        
                         html.Div([
-                            dbc.Button("Law Descriptions", id="open1",color='secondary',style={"fontSize":18}),
+                            dbc.Button("Click Here for Law Descriptions", id="open3",color='secondary',style={"fontSize":18}),
                                 dbc.Modal([
                                     dbc.ModalHeader("Descriptions"),
                                     dbc.ModalBody(
@@ -212,9 +264,9 @@ app.layout = html.Div([
                                         ]
                                     ),
                                     dbc.ModalFooter(
-                                        dbc.Button("Close", id="close1", className="ml-auto")
+                                        dbc.Button("Close", id="close3", className="ml-auto")
                                     ),
-                                ],id="modal1",size="xl",scrollable=True),
+                                ],id="modal3",size="xl",scrollable=True),
                         ],className="d-grid gap-2"),
 
                     ])
@@ -230,14 +282,47 @@ app.layout = html.Div([
                 ])                
             ]
         ),
+        dcc.Tab(label='Patterns in Text',value='tab-3',style=tab_style, selected_style=tab_selected_style,
+            children=[
+                dbc.Row([
+                    dbc.Col([
+                        html.Label(dcc.Markdown('''**Choose Law Type:**'''),style={'color':'white'}),                        
+                        dcc.Dropdown(
+                            id='dropdown3',
+                            options=[{'label': i, 'value': i} for i in law_type_choices],
+                            value=law_type_choices[0],
+                        )
+                    ],width=6),
+                    dbc.Col([
+                        dcc.Slider(
+                            id='num_words_slider',
+                            min=1,max=3,step=1,value=1,
+                            marks={
+                                1: '1',
+                                2: '2',
+                                3: '3'
+                            }
+                        )
+                    ],width=6)
+                ]),
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Graph(id='word_cloud', figure={}, config={'displayModeBar': False})
+                    ],width=6),
+                    dbc.Col([
+                        dcc.Graph(id='n_gram_chart')
+                    ],width=6),
+                ])
+            ]
+        ),
 #Tab #4 --> Clustering
 
-        dcc.Tab(label='Clustering',value='tab-3',style=tab_style, selected_style=tab_selected_style,
+        dcc.Tab(label='Clustering',value='tab-4',style=tab_style, selected_style=tab_selected_style,
             children=[
                 dbc.Row([
                     dbc.Col([
                         html.Div([
-                            dbc.Button("Click Here for Instructions", id="open3",color='secondary',style={"fontSize":18}),
+                            dbc.Button("Click Here for Instructions", id="open4",color='secondary',style={"fontSize":18}),
                             dbc.Modal([
                                     dbc.ModalHeader("Descriptions"),
                                     dbc.ModalBody(
@@ -248,14 +333,14 @@ app.layout = html.Div([
                                         ]
                                     ),
                                     dbc.ModalFooter(
-                                        dbc.Button("Close", id="close3", className="ml-auto")
+                                        dbc.Button("Close", id="close4", className="ml-auto")
                                     ),
-                            ],id="modal3",size="md",scrollable=True),
+                            ],id="modal4",size="md",scrollable=True),
                         ],className="d-grid gap-2")
                     ],width=6),
                     dbc.Col([
                         html.Div([
-                            dbc.Button("Click Here for Analysis", id="open4",color='secondary',style={"fontSize":18}),
+                            dbc.Button("Click Here for Analysis", id="open5",color='secondary',style={"fontSize":18}),
                             dbc.Modal([
                                     dbc.ModalHeader("Descriptions"),
                                     dbc.ModalBody(
@@ -265,9 +350,9 @@ app.layout = html.Div([
                                         ]
                                     ),
                                     dbc.ModalFooter(
-                                        dbc.Button("Close", id="close4", className="ml-auto")
+                                        dbc.Button("Close", id="close5", className="ml-auto")
                                     ),
-                            ],id="modal4",size="md",scrollable=True),
+                            ],id="modal5",size="md",scrollable=True),
                         ],className="d-grid gap-2")
 
                     ],width=6)
@@ -323,7 +408,7 @@ app.layout = html.Div([
 
 #Tab #5 --> Predicting Suicide and Homicide using text
 
-        dcc.Tab(label='Prediction',value='tab-4',style=tab_style, selected_style=tab_selected_style,
+        dcc.Tab(label='Prediction',value='tab-5',style=tab_style, selected_style=tab_selected_style,
             children=[
                 dbc.Row([
                     dbc.Col([
@@ -359,392 +444,15 @@ def render_content(tab):
         return html.Div([
             html.H3('Tab content 4')
         ])
-    # elif tab == 'tab-5':
-    #     return html.Div([
-    #         html.H3('Tab content 5')
-    #     ])
+    elif tab == 'tab-5':
+        return html.Div([
+            html.H3('Tab content 5')
+        ])
 
 
-#-------------------------- Tab #2: Descriptive Analysis on Laws --------------------------#
+#-----------------------------Tab #2: Exploratory Analysis -----------------------------#
 
-#Configure reactivity for treemap with inputs of law type and map clicking
-@app.callback(
-    Output('card_a', 'children'), 
-    Output('card_b', 'children'), 
-    Output('card_c', 'children'), 
-    Input('state_law_freq_map', 'clickData')
-) 
-
-def update_cards_on_click(click_state):
-    if not click_state:
-        test = law_df[law_df['Year']>=1991]
-
-        location = test['State'].sort_values().iloc[0]
-        filtered = test[test['State']==location]
-        st_abb = filtered['ST'].unique()[0]
-
-        #-----Dataframe for Stat1-----#
-        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()
-        class_df = class_df.rename(
-                    columns={
-                        'index': 'Law Class',
-                        'Law Class':'# Laws'
-                    }
-        )
-        stat1 = class_df['# Laws'][0]
-        stat1_v2 = class_df['# Laws'][1]
-        stat1_test = np.where(stat1==stat1_v2,1,0).tolist()
-
-        #One hot encode law classes
-        nation_class_df = test[['State','Law Class']]
-        one_hot1 = pd.get_dummies(nation_class_df['Law Class'])
-        nation_class_df = nation_class_df.drop('Law Class',axis=1)
-        nation_class_df = nation_class_df.join(one_hot1)
-
-        #sum up to state level
-        state_class = nation_class_df.groupby('State').sum()
-        
-        col = class_df["Law Class"][0]
-        nation_stats = pd.DataFrame(state_class[col])
-        nation_stats = nation_stats.sort_values(by=col,ascending=False).reset_index()
-        nation_stats['Rank'] = nation_stats[col].rank(ascending=False,method='min').astype(int)
-        n_stat1 = nation_stats[nation_stats['State']==location]['Rank'].values[0]
-        #-----Dataframe for Stat2-----#
-        effect_df = pd.DataFrame(filtered['Effect'].value_counts()).reset_index()
-        effect_df = effect_df.rename(
-                    columns={
-                        'index': 'Effect',
-                        'Effect':'# Laws'
-                    }
-        )
-        stat2 = effect_df['# Laws'][0]
-
-        #One hot encode law classes
-        nation_effect_df = test[['State','Effect']]
-        one_hot1 = pd.get_dummies(nation_effect_df['Effect'])
-        nation_effect_df = nation_effect_df.drop('Effect',axis=1)
-        nation_effect_df = nation_effect_df.join(one_hot1)
-
-
-        #sum up to state level
-        state_effect = nation_effect_df.groupby('State').sum()
-        
-        col = effect_df["Effect"][0]
-        nation_stats = pd.DataFrame(state_effect[col])
-        nation_stats = nation_stats.sort_values(by=col,ascending=False).reset_index()
-        nation_stats['Rank'] = nation_stats[col].rank(ascending=False,method='min').astype(int)
-        n_stat2 = nation_stats[nation_stats['State']==location]['Rank'].values[0]
-
-        #-----Dataframe for Stat3-----#
-        time_df = pd.DataFrame(filtered['Year'].value_counts()).reset_index()
-        time_df = time_df.rename(
-                    columns={
-                        'index': 'Year',
-                        'Year':'# Laws'
-                    }
-        )
-        stat3 = time_df['# Laws'][0]
-        stat3_v2 = time_df['# Laws'][1]
-        stat3_test = np.where(stat3==stat3_v2,1,0).tolist()
-        
-        #One hot encode law classes
-        nation_time_df = test[['State','Year']]
-        one_hot1 = pd.get_dummies(nation_time_df['Year'])
-        nation_time_df = nation_time_df.drop('Year',axis=1)
-        nation_time_df = nation_time_df.join(one_hot1)
-
-        #sum up to state level
-        state_time = nation_time_df.groupby('State').sum()
-        state_time.columns = state_time.columns.astype(str)
-        
-        col = time_df["Year"][0]
-        nation_stats = pd.DataFrame(state_time[f'{col}'])
-        nation_stats = nation_stats.sort_values(by=f'{col}',ascending=False).reset_index()
-        nation_stats['Rank'] = nation_stats[f'{col}'].rank(ascending=False, method='min').astype(int)
-        n_stat3 = nation_stats[nation_stats['State']==location]['Rank'].values[0]
-
-
-#---------- Metrics ----------#
-        if stat1_test == 1:
-            print('yes')
-            card_a = dbc.Card([
-                dbc.CardBody([
-                    html.P(f'Most Common Type of Law ({st_abb})'),
-                    html.H6(f'Tie ({stat1} Laws)'),
-                    html.H6(f'# Laws State Rank: {n_stat1}/51')
-                ])
-            ],
-            style={'display': 'inline-block',
-                    'text-align': 'center',
-                    'background-color': '#70747c',
-                    'color':'white',
-                    'fontWeight': 'bold',
-                    'fontSize':20},
-            outline=True)
-        else:
-            card_a = dbc.Card([
-                dbc.CardBody([
-                    html.P(f'Most Common Type of Law ({st_abb})'),
-                    html.H6(f'{class_df["Law Class"][0]} ({stat1} Laws)'),
-                    html.H6(f'# Laws State Rank: {n_stat1}/51')
-                ])
-            ],
-            style={'display': 'inline-block',
-                    'text-align': 'center',
-                    'background-color': '#70747c',
-                    'color':'white',
-                    'fontWeight': 'bold',
-                    'fontSize':20},
-            outline=True)
-
-        card_b = dbc.Card([
-            dbc.CardBody([
-                html.P(f'Most Common Effect ({st_abb})'),
-                html.H6(f'{effect_df["Effect"][0]} ({stat2} Laws)'),
-                html.H6(f'{effect_df["Effect"][0]} Laws State Rank: {n_stat2}/51')
-
-            ])
-        ],
-        style={'display': 'inline-block',
-                'text-align': 'center',
-                'background-color': '#70747c',
-                'color':'white',
-                'fontWeight': 'bold',
-                'fontSize':20},
-        outline=True)
-
-        if stat3_test ==1:
-            card_c = dbc.Card([
-                dbc.CardBody([
-                    html.P(f'Year Most Laws Passed ({st_abb})'),
-                    html.H6(f'Tie ({stat3} Laws)'),
-                    html.H6(f'# Laws in {time_df["Year"][0]} State Rank: {n_stat3}/51')
-
-                ])
-            ],
-            style={'display': 'inline-block',
-                    'text-align': 'center',
-                    'background-color': '#70747c',
-                    'color':'white',
-                    'fontWeight': 'bold',
-                    'fontSize':20},
-            outline=True)
-        else:
-            card_c = dbc.Card([
-                dbc.CardBody([
-                    html.P(f'Year Most Laws Passed ({st_abb})'),
-                    html.H6(f'{time_df["Year"][0]} ({stat3} Laws)'),
-                    html.H6(f'# Laws in {time_df["Year"][0]} State Rank: {n_stat3}/51')
-
-                ])
-            ],
-            style={'display': 'inline-block',
-                    'text-align': 'center',
-                    'background-color': '#70747c',
-                    'color':'white',
-                    'fontWeight': 'bold',
-                    'fontSize':20},
-            outline=True)
-        
-        return card_a, card_b, card_c
-
-    elif click_state:
-
-        test = law_df[law_df['Year']>=1991]
-
-        location = click_state['points'][0]['hovertext']
-        filtered = test[test['State']==location]
-        st_abb = filtered['ST'].unique()[0]
-    
-        #-----Dataframe for Stat1-----#
-        class_df = pd.DataFrame(filtered['Law Class'].value_counts()).reset_index()
-        class_df = class_df.rename(
-                    columns={
-                        'index': 'Law Class',
-                        'Law Class':'# Laws'
-                    }
-        )
-        stat1 = class_df['# Laws'][0] 
-        stat1_v2 = class_df['# Laws'][1]
-        stat1_test = np.where(stat1==stat1_v2,1,0).tolist()
-
-        #One hot encode law classes
-        nation_class_df = test[['State','Law Class']]
-        one_hot1 = pd.get_dummies(nation_class_df['Law Class'])
-        nation_class_df = nation_class_df.drop('Law Class',axis=1)
-        nation_class_df = nation_class_df.join(one_hot1)
-
-        #sum up to state level
-        state_class = nation_class_df.groupby('State').sum()
-        
-        col = class_df["Law Class"][0]
-        nation_stats = pd.DataFrame(state_class[col])
-        nation_stats = nation_stats.sort_values(by=col,ascending=False).reset_index()
-        nation_stats['Rank'] = nation_stats[col].rank(ascending=False, method='min').astype(int)
-        n_stat1 = nation_stats[nation_stats['State']==location]['Rank'].values[0]
-
- #-----Dataframe for Stat2-----#
-        effect_df = pd.DataFrame(filtered['Effect'].value_counts()).reset_index()
-        effect_df = effect_df.rename(
-                    columns={
-                        'index': 'Effect',
-                        'Effect':'# Laws'
-                    }
-        )
-
-        stat2 = effect_df['# Laws'][0]
-        stat2_test = effect_df['# Laws'][0]/effect_df['# Laws'].sum()
-
-        #One hot encode law classes
-        nation_effect_df = test[['State','Effect']]
-        one_hot1 = pd.get_dummies(nation_effect_df['Effect'])
-        nation_effect_df = nation_effect_df.drop('Effect',axis=1)
-        nation_effect_df = nation_effect_df.join(one_hot1)
-
-        #sum up to state level
-        state_effect = nation_effect_df.groupby('State').sum()
-     
-        col = effect_df["Effect"][0]
-        nation_stats = pd.DataFrame(state_effect[col])
-        nation_stats = nation_stats.sort_values(by=col,ascending=False).reset_index()
-        nation_stats['Rank'] = nation_stats[col].rank(ascending=False,method='min').astype(int)
-        n_stat2 = nation_stats[nation_stats['State']==location]['Rank'].values[0]
-
-
-        #-----Dataframe for Stat3-----#
-        time_df = pd.DataFrame(filtered['Year'].value_counts()).reset_index()
-        time_df = time_df.rename(
-                    columns={
-                        'index': 'Year',
-                        'Year':'# Laws'
-                    }
-        )
-        
-        stat3 = time_df['# Laws'][0]
-        stat3_v2 = time_df['# Laws'][1]
-        stat3_test = np.where(stat3==stat3_v2,1,0).tolist()
-
-        #One hot encode law classes
-        nation_time_df = test[['State','Year']]
-        one_hot1 = pd.get_dummies(nation_time_df['Year'])
-        nation_time_df = nation_time_df.drop('Year',axis=1)
-        nation_time_df = nation_time_df.join(one_hot1)
-
-        #sum up to state level
-        state_time = nation_time_df.groupby('State').sum()
-        state_time.columns = state_time.columns.astype(str)
-
-        col = time_df["Year"][0]
-        nation_stats = pd.DataFrame(state_time[f'{col}'])
-        nation_stats = nation_stats.sort_values(by=f'{col}',ascending=False).reset_index()
-        nation_stats['Rank'] = nation_stats[f'{col}'].rank(ascending=False, method='min').astype(int)
-        n_stat3 = nation_stats[nation_stats['State']==location]['Rank'].values[0]
-
-        #---------- Set up all of the dynamic cards ----------#
-        if stat1_test ==1:
-            card_a = dbc.Card([
-                dbc.CardBody([
-                    html.P(f'Most Common Type of Law ({st_abb})'),
-                    html.H6(f'Tie ({stat1} Laws)'),
-                    html.H6(f'# Laws State Rank: {n_stat1}/51')
-                ])
-            ],
-            style={'display': 'inline-block',
-                    'text-align': 'center',
-                    'background-color': '#70747c',
-                    'color':'white',
-                    'fontWeight': 'bold',
-                    'fontSize':20},
-            outline=True)
-        else:
-            card_a = dbc.Card([
-                dbc.CardBody([
-                    html.P(f'Most Common Type of Law ({st_abb})'),
-                    html.H6(f'{class_df["Law Class"][0]} ({stat1} Laws)'),
-                    html.H6(f'# Laws State Rank: {n_stat1}/51')
-                ])
-            ],
-            style={'display': 'inline-block',
-                    'text-align': 'center',
-                    'background-color': '#70747c',
-                    'color':'white',
-                    'fontWeight': 'bold',
-                    'fontSize':20},
-            outline=True)
-
-        ####### FIX THIS!!!!!!! ######
-        if stat2_test != 0.5:
-            card_b = dbc.Card([
-                dbc.CardBody([
-                    html.P(f'Most Common Effect ({st_abb})'),
-                    html.H6(f'{effect_df["Effect"][0]} ({stat2} Laws)'),
-                    html.H6(f'{effect_df["Effect"][0]} Laws State Rank: {n_stat2}/51')
-
-                ])
-            ],
-            style={'display': 'inline-block',
-                    'text-align': 'center',
-                    'background-color': '#70747c',
-                    'color':'white',
-                    'fontWeight': 'bold',
-                    'fontSize':20},
-            outline=True)
-        else:
-            card_b = dbc.Card([
-                dbc.CardBody([
-                    html.P(f'Most Common Effect ({st_abb})'),
-                    html.H6(f'Restrictive/Permissive ({stat2} Laws)'),
-                    html.H6(f'Laws State Rank: NA (Tie)')
-
-                ])
-            ],
-            style={'display': 'inline-block',
-                    'text-align': 'center',
-                    'background-color': '#70747c',
-                    'color':'white',
-                    'fontWeight': 'bold',
-                    'fontSize':20},
-            outline=True)
-
-        if stat3_test == 1:
-            card_c = dbc.Card([
-                dbc.CardBody([
-                    html.P(f'Year Most Laws Passed ({st_abb})'),
-                    html.H6(f'Tie ({stat3} Laws)'),
-                    html.H6(f'# Laws in {time_df["Year"][0]} State Rank: {n_stat3}/51')
-
-                ])
-            ],
-            style={'display': 'inline-block',
-                    'text-align': 'center',
-                    'background-color': '#70747c',
-                    'color':'white',
-                    'fontWeight': 'bold',
-                    'fontSize':20},
-            outline=True)
-        else:
-            card_c = dbc.Card([
-                dbc.CardBody([
-                    html.P(f'Year Most Laws Passed ({st_abb})'),
-                    html.H6(f'{time_df["Year"][0]} ({stat3} Laws)'),
-                    html.H6(f'# Laws in {time_df["Year"][0]} State Rank: {n_stat3}/51')
-
-                ])
-            ],
-            style={'display': 'inline-block',
-                    'text-align': 'center',
-                    'background-color': '#70747c',
-                    'color':'white',
-                    'fontWeight': 'bold',
-                    'fontSize':20},
-            outline=True)
-
-        return card_a, card_b, card_c
-
-#-----------------------------Tab #3: Exploratory Analysis -----------------------------#
-
-
-
+#Configure reactivity for cosine similarity matrix - law text
 @app.callback(
     Output('cosine_matrix', 'figure'), 
     Input('dropdown2','value')
@@ -786,12 +494,14 @@ def update_matrix(dd2):#,state_choice):
             'color':'Cosine Similarity'
         },
         zmin=0,
-        zmax=1
+        zmax=1,
+        title = f'Cosine Similarity Matrix: Text of {dd2.title()} Laws'
 
     )
 
     return fig
 
+#Configure reactivity for choropleth map showing which states have passed certain types of laws
 @app.callback(
     Output('law_map', 'figure'), 
     Input('dropdown2','value')
@@ -812,16 +522,86 @@ def law_map_function(dd2):
                             hover_name='State',
                             locationmode='USA-states',
                             color_continuous_scale="Viridis",
-                            title = f'# {dd2} Laws Passed by State (1991-2020)',
+                            title = f'# {dd2.title()} Laws Passed by State (1991-2020)',
                             labels={
                                     'Count':'# Laws Passed',
                                     'ST':'State'
                             },
                             scope='usa')
   
+    fig.update_layout(coloraxis={"colorbar":{"dtick":1}})
 
     return fig
-#-----------------------------Tab #4: Clustering -----------------------------#
+
+#----------------------------- Tab #3: Patterns in Text -----------------------------#
+#Configure reactivity of word cloud controlled by dropdown
+@app.callback(
+    Output('word_cloud', 'figure'), 
+    Input('dropdown3','value')
+) 
+
+def update_word_cloud(dd3):
+    filtered = law_df[law_df['Law Class']==dd3]
+    dff = filtered.copy()
+    dff = dff['Content_cleaned']
+    
+    my_wordcloud = WordCloud(
+        background_color='black',
+        height=275,
+        min_word_length = 4,
+
+    ).generate(' '.join(dff))
+
+    fig_wordcloud = px.imshow(
+        my_wordcloud,
+        template='plotly_dark',
+        title=f"Word Cloud for {dd3.title()} Laws"
+    )
+    fig_wordcloud.update_layout(margin=dict(l=0, r=0, t=30, b=0))
+    fig_wordcloud.update_xaxes(visible=False)
+    fig_wordcloud.update_yaxes(visible=False)
+
+    return fig_wordcloud
+
+
+#Configure reactivity of n-gram chart
+@app.callback(
+    Output('n_gram_chart','figure'),
+    Input('num_words_slider','value'),
+    Input('dropdown3','value')
+)
+
+def update_n_gram_chart(word_num_slider,dd3):
+    filtered = law_df[law_df['Law Class']==dd3]
+    #filtered = law_df[law_df['Law Class']=="dealer license"]
+    
+    word_num = word_num_slider
+    top_ngrams = get_top_ngram(filtered['Content_cleaned'],word_num)[:10]
+    top_words = pd.DataFrame(top_ngrams,columns=['word','count'])
+    top_words = top_words.sort_values('count',ascending=True)
+
+    bar_fig = px.bar(
+        top_words, 
+        x='count', 
+        y='word',
+        orientation='h',
+        title=f'Words Most Commonly Used in {dd3.title()} Laws',
+        labels={'count':'Frequency'},
+        template='plotly_dark'
+    )
+
+    bar_fig.update_layout(
+        coloraxis_showscale=False, 
+        yaxis_title=None,
+        #xaxis_range=[0,xlimit1+1],
+        margin=dict(l=20, r=20, t=45, b=20),
+        title={
+            'xanchor':'center',
+            'x':0.5
+        }
+    )
+    return bar_fig
+#----------------------------- Tab #4: Clustering -----------------------------#
 
 
 #Configure reactivity of cluster map controlled by range slider
@@ -896,6 +676,7 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
 
     X = not_states_fixed
 
+    #Add the Law ID back into df
     X = pd.merge(
         X,
         index_df,
@@ -951,7 +732,6 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
     #Filter for cards
     sortedX['cluster_col'] = "Cluster " + sortedX['cluster'] 
     card_filter = sortedX[sortedX['cluster_col']==dd1]
-    #card_filter = sortedX[sortedX['cluster_col']=='Cluster 1']
 
     stat1 = round(card_filter['Pop'].median())
     stat2 = round(card_filter['Income'].median())
@@ -1016,8 +796,6 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
 
     return fig, [{'label':i,'value':i} for i in new_cluster_list], card1, card2, card3a, card3b
     
-
-    
 #----------Configure reactivity for Instructions Button #1 --> Tab #2----------#
 @app.callback(
     Output("modal1", "is_open"),
@@ -1032,7 +810,21 @@ def toggle_modal1(n1, n2, is_open):
     return is_open
 
 
-#----------Configure reactivity for Instructions Button #3 --> Tab #4----------#
+#----------Configure reactivity for Analysis, Button #2 --> Tab #2----------#
+@app.callback(
+    Output("modal2", "is_open"),
+    Input("open2", "n_clicks"), 
+    Input("close2", "n_clicks"),
+    State("modal2", "is_open")
+)
+
+def toggle_modal2(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
+
+#----------Configure reactivity for Law Descriptions, Button #3 --> Tab #2----------#
 @app.callback(
     Output("modal3", "is_open"),
     Input("open3", "n_clicks"), 
@@ -1046,7 +838,7 @@ def toggle_modal3(n1, n2, is_open):
     return is_open
 
 
-#----------Configure reactivity for Instructions Button #4 --> Tab #4----------#
+#----------Configure reactivity for Clustering Instructions Button #4 --> Tab #4----------#
 @app.callback(
     Output("modal4", "is_open"),
     Input("open4", "n_clicks"), 
@@ -1055,6 +847,19 @@ def toggle_modal3(n1, n2, is_open):
 )
 
 def toggle_modal4(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
+#----------Configure reactivity for Clustering Analysis Button #5 --> Tab #4----------#
+@app.callback(
+    Output("modal5", "is_open"),
+    Input("open5", "n_clicks"), 
+    Input("close5", "n_clicks"),
+    State("modal5", "is_open")
+)
+
+def toggle_modal5(n1, n2, is_open):
     if n1 or n2:
         return not is_open
     return is_open
