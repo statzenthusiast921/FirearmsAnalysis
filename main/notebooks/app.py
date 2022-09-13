@@ -14,6 +14,7 @@ from sklearn.impute import KNNImputer
 import warnings
 from kneed import KneeLocator
 from dash import dash_table as dt
+import itertools
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
@@ -22,6 +23,9 @@ from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 
 from sklearn.feature_extraction.text import CountVectorizer
 count_vectorizer = CountVectorizer(stop_words='english')
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+vectorizer = TfidfVectorizer()
 from sklearn.metrics.pairwise import cosine_similarity
 from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
 
@@ -213,7 +217,7 @@ app.layout = html.Div([
                     dbc.Col([
                         html.Label(dcc.Markdown('''**Choose Law Type:**'''),style={'color':'white'}),                        
                         dcc.Dropdown(
-                            id='dropdown2',
+                            id='dropdown1',
                             options=[{'label': i, 'value': i} for i in law_type_choices],
                             value=law_type_choices[0],
                         )
@@ -288,12 +292,11 @@ app.layout = html.Div([
                     dbc.Col([
                         html.Label(dcc.Markdown('''**Choose Law Type:**'''),style={'color':'white'}),                        
                         dcc.Dropdown(
-                            id='dropdown3',
+                            id='dropdown2',
                             options=[{'label': i, 'value': i} for i in law_type_choices],
                             value=law_type_choices[0],
-                        )
-                    ],width=6),
-                    dbc.Col([
+                        ),
+                        html.Label(dcc.Markdown('''**Choose # of words:**'''),style={'color':'white'}),                        
                         dcc.Slider(
                             id='num_words_slider',
                             min=1,max=3,step=1,value=1,
@@ -303,15 +306,30 @@ app.layout = html.Div([
                                 3: '3'
                             }
                         )
+                    ],width=6),
+                    dbc.Col([
+                        html.Label(dcc.Markdown('''**Choose Laws to Compare:**'''),style={'color':'white'}),                        
+                        dcc.Dropdown(
+                            id='dropdown3',
+                            options=[{'label': i, 'value': i} for i in law_list_choices],
+                            value=law_list_choices[0],
+                        ),
+                        dcc.Dropdown(
+                            id='dropdown4',
+                            options=[{'label': i, 'value': i} for i in law_list_choices],
+                            value=law_list_choices[0],
+                        )
                     ],width=6)
                 ]),
+                
                 dbc.Row([
-                    dbc.Col([
-                        dcc.Graph(id='word_cloud', figure={}, config={'displayModeBar': False})
-                    ],width=6),
                     dbc.Col([
                         dcc.Graph(id='n_gram_chart')
                     ],width=6),
+                    dbc.Col([
+                        dcc.Graph(id='tf_idf1'),
+                        dcc.Graph(id='tf_idf2')
+                    ],width=6)
                 ])
             ]
         ),
@@ -376,7 +394,7 @@ app.layout = html.Div([
                     dbc.Col([
                         html.Label(dcc.Markdown('''**Choose a cluster:**'''),style={'color':'white'}),                        
                         dcc.Dropdown(
-                            id='dropdown1',
+                            id='dropdown5',
                             options=[{'label': i, 'value': i} for i in cluster_choices],
                             value=cluster_choices[0],
                         )
@@ -455,7 +473,7 @@ def render_content(tab):
 #Configure reactivity for cosine similarity matrix - law text
 @app.callback(
     Output('cosine_matrix', 'figure'), 
-    Input('dropdown2','value')
+    Input('dropdown1','value')
 ) 
 
 def update_matrix(dd2):#,state_choice):
@@ -504,7 +522,7 @@ def update_matrix(dd2):#,state_choice):
 #Configure reactivity for choropleth map showing which states have passed certain types of laws
 @app.callback(
     Output('law_map', 'figure'), 
-    Input('dropdown2','value')
+    Input('dropdown1','value')
 )
 def law_map_function(dd2):
     filtered = law_df[law_df['Law Class']==dd2]
@@ -534,41 +552,39 @@ def law_map_function(dd2):
     return fig
 
 #----------------------------- Tab #3: Patterns in Text -----------------------------#
-#Configure reactivity of word cloud controlled by dropdown
+
 @app.callback(
-    Output('word_cloud', 'figure'), 
-    Input('dropdown3','value')
-) 
+    Output('dropdown3', 'options'), #--> filter law options
+    Output('dropdown3', 'value'),
+    Input('dropdown2', 'value') #--> choose law type
+)
+def set_law_options1(selected_law):
+    return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law]], law_type_id_dict[selected_law][0],
 
-def update_word_cloud(dd3):
-    filtered = law_df[law_df['Law Class']==dd3]
-    dff = filtered.copy()
-    dff = dff['Content_cleaned']
-    
-    my_wordcloud = WordCloud(
-        background_color='black',
-        height=275,
-        min_word_length = 4,
+@app.callback(
+    Output('dropdown4', 'options'), #--> filter law options
+    Output('dropdown4', 'value'),
+    Input('dropdown2', 'value') #--> choose law type
+)
+def set_law_options2(selected_law):
+    return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law]], law_type_id_dict[selected_law][1],
 
-    ).generate(' '.join(dff))
 
-    fig_wordcloud = px.imshow(
-        my_wordcloud,
-        template='plotly_dark',
-        title=f"Word Cloud for {dd3.title()} Laws"
-    )
-    fig_wordcloud.update_layout(margin=dict(l=0, r=0, t=30, b=0))
-    fig_wordcloud.update_xaxes(visible=False)
-    fig_wordcloud.update_yaxes(visible=False)
 
-    return fig_wordcloud
-
+# @app.callback(
+#     Output('dropdown4','options'),
+#     Input('dropdown3','value')
+# )
+# def update_second_dropdown(value):
+#     updated_law_choice = law_type_id_dict.copy()
+#     updated_law_choice.remove(value)
+#     return [{'label': i, 'value': i} for i in updated_law_choice]
 
 #Configure reactivity of n-gram chart
 @app.callback(
     Output('n_gram_chart','figure'),
     Input('num_words_slider','value'),
-    Input('dropdown3','value')
+    Input('dropdown2','value')
 )
 
 def update_n_gram_chart(word_num_slider,dd3):
@@ -601,19 +617,136 @@ def update_n_gram_chart(word_num_slider,dd3):
         }
     )
     return bar_fig
+
+
+#Configure reactivity for tf_idf bar chart
+@app.callback(
+    Output('tf_idf1', 'figure'), 
+    Output('tf_idf2', 'figure'), 
+
+    Input('dropdown2','value'),
+    Input('dropdown3','value'),
+    Input('dropdown4','value')
+
+) 
+
+def update_tf_idf_bar_chart(dd3,dd4,dd5):
+    filtered = law_df[law_df['Law Class']==dd3]
+    #filtered = law_df[law_df['Law Class']=="dealer license"]
+    law_ids = pd.DataFrame(filtered['Law ID'])
+
+    corpus = filtered['Content_cleaned'].tolist()
+
+    tr_idf_model  = TfidfVectorizer()
+    tf_idf_vector = tr_idf_model.fit_transform(corpus)  
+
+    tf_idf_array = tf_idf_vector.toarray()
+    words_set = tr_idf_model.get_feature_names_out()
+    df_tf_idf = pd.DataFrame(tf_idf_array, columns = words_set)
+    df_tf_idf['Law ID'] = law_ids['Law ID'].values
+
+    # count # cols with all rows >0
+    # g0 = pd.DataFrame(df_tf_idf[df_tf_idf > 0 ].count(),columns=['count'])
+    # max_cols = g0['count'].max()
+    # g0[g0['count']==max_cols]
+
+    # find the most relatively important word in the corpus
+    # max_words_row = pd.DataFrame(df_tf_idf.max(axis = 1),columns=['tfidf'])
+    # num1 = max_words_row['tfidf'].max()
+    # test = df_tf_idf[df_tf_idf.eq(num1).any(1)]
+    # test_dict = test.to_dict(orient='list')
+    # value = ''.join({i for i in test_dict if test_dict[i]==num1})
+    # #final_value = ''.join(value)    
+
+    # compare relative importance of words between docs
+    #tfidf_compare = df_tf_idf[df_tf_idf['Law ID'].isin([dd4,dd5])]
+    #tfidf_compare = df_tf_idf[df_tf_idf['Law ID'].isin(['CT1013','IN1012'])]
+
+    law1 = pd.DataFrame(df_tf_idf[df_tf_idf['Law ID']==dd4])
+    law2 = pd.DataFrame(df_tf_idf[df_tf_idf['Law ID']==dd5])
+
+    # law1 = df_tf_idf[df_tf_idf['Law ID']=='CT1013']
+    # law2 = df_tf_idf[df_tf_idf['Law ID']=='IN1012']
+
+
+
+    del law1['Law ID']
+    del law2['Law ID']
+
+    # law1t = law1.T.reset_index()
+    # law2t = law2.T.reset_index()
+
+    #Let's create two lists with column headers and another with values
+    words1 = law1.columns.values.tolist()
+    words2 = law2.columns.values.tolist()
+
+    values1 = law1[words1].values.tolist()[0]
+    values2 = law2[words2].values.tolist()[0]
+
+    law1_df = pd.DataFrame([words1,values1]).T
+    law2_df = pd.DataFrame([words2,values2]).T
+
+    law1_df.drop(law1_df.tail(1).index,inplace=True) # drop last n rows
+    law2_df.drop(law2_df.tail(1).index,inplace=True) # drop last n rows
+
+
+    law1_df.rename(
+        columns={
+            0: 'word',
+            1: 'tfidf'
+        },inplace=True
+    )
+    law2_df.rename(
+        columns={
+            0: 'word',
+            1: 'tfidf'
+        },inplace=True
+    )
+
+    law1_words = law1_df.sort_values(by='tfidf',ascending=False)
+    law2_words = law2_df.sort_values(by='tfidf',ascending=False)
+
+    law1_words = law1_words.head(10)
+    law2_words = law2_words.head(10)
+
+    bar_fig1 = px.bar(
+        law1_words, 
+        x='word', 
+        y='tfidf',
+        #orientation='h',
+        #title=f'Words Most Commonly Used in {dd3.title()} Laws',
+        #labels={'word':'Frequency'},
+        template='plotly_dark',
+        height=200
+    )
+
+
+    bar_fig2 = px.bar(
+            law2_words, 
+            x='word', 
+            y='tfidf',
+            #orientation='h',
+            #title=f'Words Most Commonly Used in {dd3.title()} Laws',
+            #labels={'word':'Frequency'},
+            template='plotly_dark',
+            height=200
+    )
+
+    return bar_fig1, bar_fig2
+
 #----------------------------- Tab #4: Clustering -----------------------------#
 
 
 #Configure reactivity of cluster map controlled by range slider
 @app.callback(
     Output('cluster_map', 'figure'), 
-    Output('dropdown1', 'options'),
+    Output('dropdown5', 'options'),
     Output('card1','children'),
     Output('card2','children'),
     Output('card3a','children'),
     Output('card3b','children'),
     Input('range_slider', 'value'),
-    Input('dropdown1','value')
+    Input('dropdown5','value')
     
 ) 
 
