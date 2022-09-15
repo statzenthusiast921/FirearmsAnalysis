@@ -8,6 +8,8 @@ import dash
 from dash import dcc, html
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
+from plotly.subplots import make_subplots
+
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.impute import KNNImputer
@@ -96,9 +98,6 @@ def get_top_ngram(corpus, n=None):
     return words_freq[:10]
 
 
-
-
-
 tabs_styles = {
     'height': '44px'
 }
@@ -125,7 +124,7 @@ app = dash.Dash(__name__,assets_folder=os.path.join(os.curdir,"assets"))
 server = app.server
 app.layout = html.Div([
     dcc.Tabs([
-
+#-------------------------------------------------------------------------------------#
 #Tab #1 --> Welcome Page
         dcc.Tab(label='What is this project about?',value='tab-1',style=tab_style, selected_style=tab_selected_style,
                children=[
@@ -143,9 +142,6 @@ app.layout = html.Div([
                        html.P("2.) Discover patterns in the text and determine the relative importance of certain words.",style={'color':'white'}),
                        html.P("3.) Determine if any latent groupings of laws exist when including regional, demographic data as well as sentiment data.",style={'color':'white'}),
                        html.P("4.) [Verb] A fourth thing.",style={'color':'white'}),
-
-
-
                        html.Br()
                    ]),
                    html.Div([
@@ -169,12 +165,10 @@ app.layout = html.Div([
                        html.P("1.) Comprehensive data for every measure used was not always available for every state or every year needed in this analysis.  Therefore, I only included data that covered the range of years 1991 through 2020.",style={'color':'white'}),
                        html.P("2.) The District of Colubmia was not included in the analysis of firearm-related homicide and suicide data due to the challenge of finding enough data covering all 30 years.",style={'color':'white'}),
                        html.P("3.) ",style={'color':'white'})
-
                    ])
                ]),
-
+#-------------------------------------------------------------------------------------#
 #Tab #2 --> Exploratory Analysis
-
         dcc.Tab(label='Exploratory Analysis',value='tab-2',style=tab_style, selected_style=tab_selected_style,
             children=[
                 dbc.Row([
@@ -182,11 +176,12 @@ app.layout = html.Div([
                         html.Div([
                             dbc.Button("Click Here for Instructions", id="open1",color='secondary',style={"fontSize":18}),
                             dbc.Modal([
-                                    dbc.ModalHeader("Descriptions"),
+                                    dbc.ModalHeader("Instructions"),
                                     dbc.ModalBody(
                                         children=[
-                                            html.P('Blah.')
-
+                                            html.P('Below is a cosine similarity matrix coupled with a map of the United States.  These two plots can be updated by selecting a different law type.'),
+                                            html.P('The matrix pairs each of the laws for the selected law type against each other and calculates a score measuring the similarity of the text.  The interpretation of this matrix is very similar to that of a correlation matrix as higher scores indicate more textual similarities vs. lower scores which indicate fewer textual similarities.'),
+                                            html.P('The map indicates the # of laws of the selected law type passed between the years 1991 and 2020.')
                                         ]
                                     ),
                                     dbc.ModalFooter(
@@ -199,10 +194,12 @@ app.layout = html.Div([
                         html.Div([
                             dbc.Button("Click Here for Analysis", id="open2",color='secondary',style={"fontSize":18}),
                             dbc.Modal([
-                                    dbc.ModalHeader("Descriptions"),
+                                    dbc.ModalHeader("Analysis"),
                                     dbc.ModalBody(
                                         children=[
-                                            html.P('Blah')
+                                            html.P('Using the scale to the side of the matrix, you can find laws that have similar textual usage by finding the higher cosine similarity scores.'),
+                                            html.P('Generally, the highest scores within a law type are slight variations of other laws from the same state passed around the same time period.'),
+                                            html.P('For most of the Waiting Period and Background Check laws, the text used contains almost identical language and results in perfect cosine similarity scores indicating there is not much of a regional variation in how these types of laws are written.')
                                         ]
                                     ),
                                     dbc.ModalFooter(
@@ -286,8 +283,45 @@ app.layout = html.Div([
                 ])                
             ]
         ),
+#-------------------------------------------------------------------------------------#
+#Tab #3 --> Patterns in Text --> N Grams, TF-IDF
         dcc.Tab(label='Patterns in Text',value='tab-3',style=tab_style, selected_style=tab_selected_style,
             children=[
+                dbc.Row([
+                    dbc.Col([
+                        html.Div([
+                            dbc.Button("Click Here for Instructions", id="open4",color='secondary',style={"fontSize":18}),
+                            dbc.Modal([
+                                    dbc.ModalHeader("Instructions"),
+                                    dbc.ModalBody(
+                                        children=[
+                                            html.P('Blah blah blah')
+                                        ]
+                                    ),
+                                    dbc.ModalFooter(
+                                        dbc.Button("Close", id="close4", className="ml-auto")
+                                    ),
+                            ],id="modal4",size="md",scrollable=True),
+                        ],className="d-grid gap-2")
+                    ],width=6),
+                    dbc.Col([
+                        html.Div([
+                            dbc.Button("Click Here for Analysis", id="open5",color='secondary',style={"fontSize":18}),
+                            dbc.Modal([
+                                    dbc.ModalHeader("Analysis"),
+                                    dbc.ModalBody(
+                                        children=[
+                                            html.P('Blah blah blah'),
+                                        ]
+                                    ),
+                                    dbc.ModalFooter(
+                                        dbc.Button("Close", id="close5", className="ml-auto")
+                                    ),
+                            ],id="modal5",size="md",scrollable=True),
+                        ],className="d-grid gap-2")
+
+                    ],width=6)
+                ]),
                 dbc.Row([
                     dbc.Col([
                         html.Label(dcc.Markdown('''**Choose Law Type:**'''),style={'color':'white'}),                        
@@ -321,28 +355,26 @@ app.layout = html.Div([
                         )
                     ],width=6)
                 ]),
-                
                 dbc.Row([
                     dbc.Col([
                         dcc.Graph(id='n_gram_chart')
                     ],width=6),
                     dbc.Col([
-                        dcc.Graph(id='tf_idf1'),
-                        dcc.Graph(id='tf_idf2')
+                        dcc.Graph(id='tf_idf'),
                     ],width=6)
                 ])
             ]
         ),
+#-------------------------------------------------------------------------------------#
 #Tab #4 --> Clustering
-
         dcc.Tab(label='Clustering',value='tab-4',style=tab_style, selected_style=tab_selected_style,
             children=[
                 dbc.Row([
                     dbc.Col([
                         html.Div([
-                            dbc.Button("Click Here for Instructions", id="open4",color='secondary',style={"fontSize":18}),
+                            dbc.Button("Click Here for Instructions", id="open6",color='secondary',style={"fontSize":18}),
                             dbc.Modal([
-                                    dbc.ModalHeader("Descriptions"),
+                                    dbc.ModalHeader("Instructions"),
                                     dbc.ModalBody(
                                         children=[
                                             html.P('Below is a scatter plot displaying the results from a cluster analysis with KPI metrics to help describe the cluster.  Each dot on the scatter plot represents a law.  Use the year range slider to filter the laws by year passed.'),
@@ -351,16 +383,16 @@ app.layout = html.Div([
                                         ]
                                     ),
                                     dbc.ModalFooter(
-                                        dbc.Button("Close", id="close4", className="ml-auto")
+                                        dbc.Button("Close", id="close6", className="ml-auto")
                                     ),
-                            ],id="modal4",size="md",scrollable=True),
+                            ],id="modal6",size="md",scrollable=True),
                         ],className="d-grid gap-2")
                     ],width=6),
                     dbc.Col([
                         html.Div([
-                            dbc.Button("Click Here for Analysis", id="open5",color='secondary',style={"fontSize":18}),
+                            dbc.Button("Click Here for Analysis", id="open7",color='secondary',style={"fontSize":18}),
                             dbc.Modal([
-                                    dbc.ModalHeader("Descriptions"),
+                                    dbc.ModalHeader("Analysis"),
                                     dbc.ModalBody(
                                         children=[
                                             html.P('Depending on how the year range filter is utilized, the application of clusters is defined a little differently for some combination of years.'),
@@ -368,9 +400,9 @@ app.layout = html.Div([
                                         ]
                                     ),
                                     dbc.ModalFooter(
-                                        dbc.Button("Close", id="close5", className="ml-auto")
+                                        dbc.Button("Close", id="close7", className="ml-auto")
                                     ),
-                            ],id="modal5",size="md",scrollable=True),
+                            ],id="modal7",size="md",scrollable=True),
                         ],className="d-grid gap-2")
 
                     ],width=6)
@@ -423,20 +455,18 @@ app.layout = html.Div([
                 ])
             ]
         ),
-
-#Tab #5 --> Predicting Suicide and Homicide using text
+#-------------------------------------------------------------------------------------#
+#Tab #5 --> Predicting Suicide and Homicide
 
         dcc.Tab(label='Prediction',value='tab-5',style=tab_style, selected_style=tab_selected_style,
             children=[
                 dbc.Row([
                     dbc.Col([
-                        html.P('this has to be a time series, right? move the suicides and homicides data ahead 3 years')
+                        html.P('Gamma model is the way to go')
                     ])
                 ])
             ]
         )
-
-
     ])
 ])
 
@@ -526,7 +556,6 @@ def update_matrix(dd2):#,state_choice):
 )
 def law_map_function(dd2):
     filtered = law_df[law_df['Law Class']==dd2]
-    #filtered = law_df[law_df['Law Class']=='castle doctrine']
     filtered = filtered[filtered['ST']!="DC"]
 
     filtered = filtered[filtered['Year']>=1991]
@@ -567,18 +596,7 @@ def set_law_options1(selected_law):
     Input('dropdown2', 'value') #--> choose law type
 )
 def set_law_options2(selected_law):
-    return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law]], law_type_id_dict[selected_law][1],
-
-
-
-# @app.callback(
-#     Output('dropdown4','options'),
-#     Input('dropdown3','value')
-# )
-# def update_second_dropdown(value):
-#     updated_law_choice = law_type_id_dict.copy()
-#     updated_law_choice.remove(value)
-#     return [{'label': i, 'value': i} for i in updated_law_choice]
+    return [{'label': i, 'value': i} for i in law_type_id_dict[selected_law]], law_type_id_dict[selected_law][1]
 
 #Configure reactivity of n-gram chart
 @app.callback(
@@ -589,7 +607,6 @@ def set_law_options2(selected_law):
 
 def update_n_gram_chart(word_num_slider,dd3):
     filtered = law_df[law_df['Law Class']==dd3]
-    #filtered = law_df[law_df['Law Class']=="dealer license"]
     
     word_num = word_num_slider
     top_ngrams = get_top_ngram(filtered['Content_cleaned'],word_num)[:10]
@@ -609,7 +626,6 @@ def update_n_gram_chart(word_num_slider,dd3):
     bar_fig.update_layout(
         coloraxis_showscale=False, 
         yaxis_title=None,
-        #xaxis_range=[0,xlimit1+1],
         margin=dict(l=20, r=20, t=45, b=20),
         title={
             'xanchor':'center',
@@ -621,9 +637,7 @@ def update_n_gram_chart(word_num_slider,dd3):
 
 #Configure reactivity for tf_idf bar chart
 @app.callback(
-    Output('tf_idf1', 'figure'), 
-    Output('tf_idf2', 'figure'), 
-
+    Output('tf_idf', 'figure'), 
     Input('dropdown2','value'),
     Input('dropdown3','value'),
     Input('dropdown4','value')
@@ -632,9 +646,9 @@ def update_n_gram_chart(word_num_slider,dd3):
 
 def update_tf_idf_bar_chart(dd3,dd4,dd5):
     filtered = law_df[law_df['Law Class']==dd3]
-    #filtered = law_df[law_df['Law Class']=="dealer license"]
     law_ids = pd.DataFrame(filtered['Law ID'])
 
+    #Create a list of all the laws
     corpus = filtered['Content_cleaned'].tolist()
 
     tr_idf_model  = TfidfVectorizer()
@@ -645,36 +659,12 @@ def update_tf_idf_bar_chart(dd3,dd4,dd5):
     df_tf_idf = pd.DataFrame(tf_idf_array, columns = words_set)
     df_tf_idf['Law ID'] = law_ids['Law ID'].values
 
-    # count # cols with all rows >0
-    # g0 = pd.DataFrame(df_tf_idf[df_tf_idf > 0 ].count(),columns=['count'])
-    # max_cols = g0['count'].max()
-    # g0[g0['count']==max_cols]
-
-    # find the most relatively important word in the corpus
-    # max_words_row = pd.DataFrame(df_tf_idf.max(axis = 1),columns=['tfidf'])
-    # num1 = max_words_row['tfidf'].max()
-    # test = df_tf_idf[df_tf_idf.eq(num1).any(1)]
-    # test_dict = test.to_dict(orient='list')
-    # value = ''.join({i for i in test_dict if test_dict[i]==num1})
-    # #final_value = ''.join(value)    
-
-    # compare relative importance of words between docs
-    #tfidf_compare = df_tf_idf[df_tf_idf['Law ID'].isin([dd4,dd5])]
-    #tfidf_compare = df_tf_idf[df_tf_idf['Law ID'].isin(['CT1013','IN1012'])]
-
     law1 = pd.DataFrame(df_tf_idf[df_tf_idf['Law ID']==dd4])
     law2 = pd.DataFrame(df_tf_idf[df_tf_idf['Law ID']==dd5])
-
-    # law1 = df_tf_idf[df_tf_idf['Law ID']=='CT1013']
-    # law2 = df_tf_idf[df_tf_idf['Law ID']=='IN1012']
-
-
 
     del law1['Law ID']
     del law2['Law ID']
 
-    # law1t = law1.T.reset_index()
-    # law2t = law2.T.reset_index()
 
     #Let's create two lists with column headers and another with values
     words1 = law1.columns.values.tolist()
@@ -686,10 +676,11 @@ def update_tf_idf_bar_chart(dd3,dd4,dd5):
     law1_df = pd.DataFrame([words1,values1]).T
     law2_df = pd.DataFrame([words2,values2]).T
 
-    law1_df.drop(law1_df.tail(1).index,inplace=True) # drop last n rows
-    law2_df.drop(law2_df.tail(1).index,inplace=True) # drop last n rows
+    #Drop last observation --> result of transposing unwanted
+    law1_df.drop(law1_df.tail(1).index,inplace=True)
+    law2_df.drop(law2_df.tail(1).index,inplace=True)
 
-
+    #Reframe tf-idf dfs
     law1_df.rename(
         columns={
             0: 'word',
@@ -706,34 +697,35 @@ def update_tf_idf_bar_chart(dd3,dd4,dd5):
     law1_words = law1_df.sort_values(by='tfidf',ascending=False)
     law2_words = law2_df.sort_values(by='tfidf',ascending=False)
 
+    #Get the top 10 words sorted by tfidf
     law1_words = law1_words.head(10)
     law2_words = law2_words.head(10)
+    
+    #Plot the two graphs next to each other
+    fig = make_subplots(rows=1, cols=2)
 
-    bar_fig1 = px.bar(
-        law1_words, 
-        x='word', 
-        y='tfidf',
-        #orientation='h',
-        #title=f'Words Most Commonly Used in {dd3.title()} Laws',
-        #labels={'word':'Frequency'},
-        template='plotly_dark',
-        height=200
-    )
+    bar_fig1 = px.bar(law1_words, x='word', y='tfidf')
+    bar_fig2 = px.bar(law2_words, x='word', y='tfidf')
 
+    bar_fig1.update_traces(marker_color='#D7504D')
+    bar_fig2.update_traces(marker_color='#D7504D')
 
-    bar_fig2 = px.bar(
-            law2_words, 
-            x='word', 
-            y='tfidf',
-            #orientation='h',
-            #title=f'Words Most Commonly Used in {dd3.title()} Laws',
-            #labels={'word':'Frequency'},
-            template='plotly_dark',
-            height=200
-    )
+    figures = [bar_fig1, bar_fig2]
 
-    return bar_fig1, bar_fig2
+    fig = make_subplots(rows=len(figures), cols=1) 
 
+    for i, figure in enumerate(figures):
+        for trace in range(len(figure["data"])):
+            fig.append_trace(figure["data"][trace], row=i+1, col=1)
+            fig.update_layout(
+                template='plotly_dark',
+                title=f'TF-IDF Scores for {dd3.title()} Laws',
+                margin=dict(l=20, r=20, t=45, b=20)
+
+            )
+            
+    return fig
+    
 #----------------------------- Tab #4: Clustering -----------------------------#
 
 
@@ -817,7 +809,6 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
         on=['index']
     )
 
-    
     #This is the filtered list that gets populated in the dropdown box
     cluster_list = X['cluster'].unique().tolist()
     cluster_list.sort()
@@ -929,7 +920,7 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
 
     return fig, [{'label':i,'value':i} for i in new_cluster_list], card1, card2, card3a, card3b
     
-#----------Configure reactivity for Instructions Button #1 --> Tab #2----------#
+#----------Configure reactivity for Button #1 (Instructions) --> Tab #2----------#
 @app.callback(
     Output("modal1", "is_open"),
     Input("open1", "n_clicks"), 
@@ -943,7 +934,7 @@ def toggle_modal1(n1, n2, is_open):
     return is_open
 
 
-#----------Configure reactivity for Analysis, Button #2 --> Tab #2----------#
+#----------Configure reactivity for Button #2 (Analysis) --> Tab #2----------#
 @app.callback(
     Output("modal2", "is_open"),
     Input("open2", "n_clicks"), 
@@ -957,7 +948,7 @@ def toggle_modal2(n1, n2, is_open):
     return is_open
 
 
-#----------Configure reactivity for Law Descriptions, Button #3 --> Tab #2----------#
+#----------Configure reactivity for Button #3 (Law Descriptions) --> Tab #2----------#
 @app.callback(
     Output("modal3", "is_open"),
     Input("open3", "n_clicks"), 
@@ -971,7 +962,7 @@ def toggle_modal3(n1, n2, is_open):
     return is_open
 
 
-#----------Configure reactivity for Clustering Instructions Button #4 --> Tab #4----------#
+#----------Configure reactivity for Button #4 (Instructions) --> Tab #3----------#
 @app.callback(
     Output("modal4", "is_open"),
     Input("open4", "n_clicks"), 
@@ -984,7 +975,7 @@ def toggle_modal4(n1, n2, is_open):
         return not is_open
     return is_open
 
-#----------Configure reactivity for Clustering Analysis Button #5 --> Tab #4----------#
+#----------Configure reactivity for Button #5 (Analysis) --> Tab #3----------#
 @app.callback(
     Output("modal5", "is_open"),
     Input("open5", "n_clicks"), 
@@ -997,6 +988,31 @@ def toggle_modal5(n1, n2, is_open):
         return not is_open
     return is_open
 
+#----------Configure reactivity for Button #6 (Instructions) --> Tab #4----------#
+@app.callback(
+    Output("modal6", "is_open"),
+    Input("open6", "n_clicks"), 
+    Input("close6", "n_clicks"),
+    State("modal6", "is_open")
+)
+
+def toggle_modal6(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
+#----------Configure reactivity for Button #6 (Analysis) --> Tab #4----------#
+@app.callback(
+    Output("modal7", "is_open"),
+    Input("open7", "n_clicks"), 
+    Input("close7", "n_clicks"),
+    State("modal7", "is_open")
+)
+
+def toggle_modal7(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
 
 if __name__=='__main__':
 	app.run_server()
