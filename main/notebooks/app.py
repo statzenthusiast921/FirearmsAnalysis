@@ -13,10 +13,13 @@ from plotly.subplots import make_subplots
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.impute import KNNImputer
+
 import warnings
 from kneed import KneeLocator
 from dash import dash_table as dt
 import itertools
+import statsmodels.api as sm
+from math import exp
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
@@ -50,6 +53,9 @@ law_df = law_df[law_df['Effective Date'].notnull()]
 
 law_type_choices = law_df['Law Class'].unique()
 law_list_choices = law_df['Law ID'].unique()
+law_list_choices_for_stat_model = law_df['Law ID'].unique()
+
+response_choices = ['Suicides','Homicides']
 
 
 #Fix Mississippi and DC labels
@@ -72,6 +78,13 @@ law_df = law_df[~i1.isin(i2)]
 
 #Law Type --> Law ID Dictionary
 law_type_id_dict = law_df.groupby('Law Class')['Law ID'].apply(list).to_dict()
+
+
+#Year --> State Dictionary
+year_state_dict = law_df.groupby('Year')['State'].apply(list).to_dict()
+year_state_dict_no_dups = {a:list(set(b)) for a, b in year_state_dict.items()}
+
+
 
 #Clean up cluster dataset as needed
 cluster_df.drop(cluster_df[cluster_df['SuicidesB3'] == 0].index, inplace=True)
@@ -96,6 +109,86 @@ def get_top_ngram(corpus, n=None):
                   for word, idx in vec.vocabulary_.items()]
     words_freq =sorted(words_freq, key = lambda x: x[1], reverse=True)
     return words_freq[:10]
+
+state_choices = law_df['State'].unique()
+
+
+#Create statistical model df
+law_df_excerpt = law_df[['Law ID', 'Law Class','Year','Effect','len_text','sentiment_score']]
+cluster_df_excerpt = cluster_df[['Suicides','Homicides','Law ID','State','ST','Income','Pop','DEM_Perc','GOP_Perc','HuntLic','GunsAmmo','avg_own_est']]
+
+full_df = pd.merge(
+        law_df_excerpt,
+        cluster_df_excerpt,
+        how='right',
+        on=['Law ID']
+    )
+
+
+#1.) Break out text columns - will screw with KNN 
+text = pd.DataFrame(full_df[['Law ID', 'Law Class','Effect','State','ST']])
+not_text = full_df.loc[:, ~full_df.columns.isin(['Law ID', 'Law Class','Effect','State','ST'])]
+
+#2.) Impute the non-text columns
+imputer = KNNImputer(n_neighbors=5)
+not_text_fixed = pd.DataFrame(imputer.fit_transform(not_text),columns=not_text.columns)
+
+#3.) Add the text columns back in
+not_text_fixed['State'] = text['State']
+not_text_fixed['ST'] = text['ST']
+not_text_fixed['Effect'] = text['Effect']
+not_text_fixed['Law ID'] = text['Law ID']
+not_text_fixed['Law Class'] = text['Law Class']
+
+#4.) Display results
+full_df = not_text_fixed
+
+
+#5.) Get rid of missing values that are left
+full_df = full_df[full_df['Effect'].notna()]
+
+#6.) Put dataset together
+stat_df = full_df[['Law ID','ST','State','Year','len_text','sentiment_score', 'Income', 'Pop', 'DEM_Perc',
+                   'HuntLic', 'GunsAmmo', 'avg_own_est', 'Effect','Homicides','Suicides']]
+
+
+#State --> Law ID Dictionary --> Move this after creating stat_df
+state_law_id_dict = stat_df.groupby('State')['Law ID'].apply(list).to_dict()
+
+
+#One hot encode Effect column
+one_hot1 = pd.get_dummies(stat_df['Effect'])
+stat_df = stat_df.drop('Effect',axis=1)
+stat_df = stat_df.join(one_hot1)
+
+#7.) Define function get results
+def configure_model_by_law(law_selected,response_selected):
+    choose_law = stat_df[stat_df['Law ID']==law_selected]
+    #choose_law = stat_df[stat_df['Law ID']=="AR1025"]
+
+    choose_year = choose_law['Year'].values[0]
+    choose_state = choose_law['ST'].values[0]
+
+
+    stat_df['Impact'] = np.where((stat_df['Year']<=choose_year) & (stat_df['ST']==choose_state),0,1)
+
+    X = stat_df[['Year','Income','Pop','DEM_Perc','HuntLic','GunsAmmo','avg_own_est','Permissive','Restrictive','Impact']]
+    y = stat_df[[response_selected]]
+
+    X = sm.add_constant(X)
+
+    #Instantiate a gamma family model with the default link function.
+    gamma_model = sm.GLM(y, X, family=sm.families.Gamma(link=sm.families.links.log()))
+
+    gamma_results = gamma_model.fit()
+    params = gamma_results.params
+    result = params[-1:].values[0]
+
+    return result
+
+#configure_model_by_law('AR1025','Suicides')
+
+
 
 
 tabs_styles = {
@@ -141,7 +234,7 @@ app.layout = html.Div([
                        html.P("1.) Explore the similarity in the text of the laws and determine if any regional relationships exist",style={'color':'white'}),
                        html.P("2.) Discover patterns in the text and determine the relative importance of certain words.",style={'color':'white'}),
                        html.P("3.) Determine if any latent groupings of laws exist when including regional, demographic data as well as sentiment data.",style={'color':'white'}),
-                       html.P("4.) [Verb] A fourth thing.",style={'color':'white'}),
+                       html.P("4.) Examine if there is a statistically significant difference in the rate of homicides or suicides in a particular state before vs. after any firearm related laws were passed.",style={'color':'white'}),
                        html.Br()
                    ]),
                    html.Div([
@@ -295,7 +388,8 @@ app.layout = html.Div([
                                     dbc.ModalHeader("Instructions"),
                                     dbc.ModalBody(
                                         children=[
-                                            html.P('Blah blah blah')
+                                            html.P('To update the left graph, choose a law type from the first dropdown menu.  The graph  will populate with the top 10 most commonly used words in these types of laws.  To update this graph using bigrams or trigrams, use the slider to select the # of words that conincide in the text.'),
+                                            html.P('To update the graph on the right, use the second and third dropdown menus to select two laws for which you want to compare TF-IDF scores on individual words used in the text.  These scores represent the relative importance of a word to the entire text.')
                                         ]
                                     ),
                                     dbc.ModalFooter(
@@ -456,13 +550,74 @@ app.layout = html.Div([
             ]
         ),
 #-------------------------------------------------------------------------------------#
-#Tab #5 --> Predicting Suicide and Homicide
+#Tab #5 --> Regression for Suicide and Homicide
 
-        dcc.Tab(label='Prediction',value='tab-5',style=tab_style, selected_style=tab_selected_style,
+        dcc.Tab(label='Regression',value='tab-5',style=tab_style, selected_style=tab_selected_style,
             children=[
                 dbc.Row([
                     dbc.Col([
-                        html.P('Gamma model is the way to go')
+                        html.Div([
+                            dbc.Button("Click Here for Instructions", id="open8",color='secondary',style={"fontSize":18}),
+                            dbc.Modal([
+                                    dbc.ModalHeader("Instructions"),
+                                    dbc.ModalBody(
+                                        children=[
+                                            html.P('Test'),
+
+                                        ]
+                                    ),
+                                    dbc.ModalFooter(
+                                        dbc.Button("Close", id="close8", className="ml-auto")
+                                    ),
+                            ],id="modal8",size="md",scrollable=True),
+                        ],className="d-grid gap-2")
+                    ],width=6),
+                    dbc.Col([
+                        html.Div([
+                            dbc.Button("Click Here for Analysis", id="open9",color='secondary',style={"fontSize":18}),
+                            dbc.Modal([
+                                    dbc.ModalHeader("Analysis"),
+                                    dbc.ModalBody(
+                                        children=[
+                                            html.P('Test'),
+                                        ]
+                                    ),
+                                    dbc.ModalFooter(
+                                        dbc.Button("Close", id="close9", className="ml-auto")
+                                    ),
+                            ],id="modal9",size="md",scrollable=True),
+                        ],className="d-grid gap-2")
+
+                    ],width=6)
+                ]),
+                dbc.Row([
+                    dbc.Col([
+                        html.Br(),
+                        html.Label(dcc.Markdown('''**Choose State:**'''),style={'color':'white'}),                        
+                        dcc.Dropdown(
+                            id='dropdown6',
+                            options=[{'label': i, 'value': i} for i in state_choices],
+                            value=state_choices[0]
+                        ),
+                        html.Br(),
+                        html.Label(dcc.Markdown('''**Choose Law:**'''),style={'color':'white'}),                        
+                        dcc.Dropdown(
+                            id='dropdown7',
+                            options=[{'label': i, 'value': i} for i in law_list_choices_for_stat_model],
+                            value=law_list_choices_for_stat_model[0]
+                        ),
+                        html.Br(),
+                        html.Label(dcc.Markdown('''**Choose Response:**'''),style={'color':'white'}),                        
+                        dcc.Dropdown(
+                            id='dropdown8',
+                            options=[{'label': i, 'value': i} for i in response_choices],
+                            value=response_choices[0]
+                        )
+                    ],width=3),
+                    dbc.Col([
+                        html.Br(),
+                        dbc.Card(id='card4'),
+                        dbc.Card(id='card5')  
                     ])
                 ])
             ]
@@ -719,7 +874,7 @@ def update_tf_idf_bar_chart(dd3,dd4,dd5):
             fig.append_trace(figure["data"][trace], row=i+1, col=1)
             fig.update_layout(
                 template='plotly_dark',
-                title=f'TF-IDF Scores for {dd3.title()} Laws',
+                title=f'TF-IDF Scores for Laws {dd4} and {dd5}',
                 margin=dict(l=20, r=20, t=45, b=20)
 
             )
@@ -920,6 +1075,45 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
 
     return fig, [{'label':i,'value':i} for i in new_cluster_list], card1, card2, card3a, card3b
     
+
+
+
+#----------Regression----------#
+
+@app.callback(
+    Output('dropdown7', 'options'), #--> filter law options
+    Output('dropdown7', 'value'),
+    Input('dropdown6', 'value') #--> choose state
+)
+def set_law_option3(selected_law):
+    return [{'label': i, 'value': i} for i in state_law_id_dict[selected_law]], state_law_id_dict[selected_law][1]
+
+#Configure reactivity of cards controlled by model parameters
+@app.callback(
+    Output('card4', 'children'), 
+    Input('dropdown7','value'),
+    Input('dropdown8','value')
+) 
+
+def update_model_card(dd7, dd8):
+    impact = configure_model_by_law(dd7,dd8)
+    result = round((exp(impact)-1)*100,2)
+
+    card4 = dbc.Card([
+        dbc.CardBody([
+            html.P('Result %'),
+            html.H6(f'{result}%'),
+        ])
+    ],
+    style={'display': 'inline-block',
+           'text-align': 'center',
+           'background-color': '#70747c',
+           'color':'white',
+           'fontWeight': 'bold',
+           'fontSize':20},
+    outline=True)
+
+    return card4
 #----------Configure reactivity for Button #1 (Instructions) --> Tab #2----------#
 @app.callback(
     Output("modal1", "is_open"),
@@ -1010,6 +1204,32 @@ def toggle_modal6(n1, n2, is_open):
 )
 
 def toggle_modal7(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
+#----------Configure reactivity for Button #8 (Instructions) --> Tab #5----------#
+@app.callback(
+    Output("modal8", "is_open"),
+    Input("open8", "n_clicks"), 
+    Input("close8", "n_clicks"),
+    State("modal8", "is_open")
+)
+
+def toggle_modal8(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
+#----------Configure reactivity for Button #9 (Analysis) --> Tab #5----------#
+@app.callback(
+    Output("modal9", "is_open"),
+    Input("open9", "n_clicks"), 
+    Input("close9", "n_clicks"),
+    State("modal9", "is_open")
+)
+
+def toggle_modal9(n1, n2, is_open):
     if n1 or n2:
         return not is_open
     return is_open
