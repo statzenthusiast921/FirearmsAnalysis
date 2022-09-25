@@ -55,8 +55,6 @@ law_type_choices = law_df['Law Class'].unique()
 law_list_choices = law_df['Law ID'].unique()
 law_list_choices_for_stat_model = law_df['Law ID'].unique()
 
-response_choices = ['Suicides','Homicides']
-
 
 #Fix Mississippi and DC labels
 law_df['State'] = np.where(law_df['State']=='MIssissippi', 'Mississippi', law_df['State'])
@@ -83,8 +81,10 @@ law_type_id_dict = law_df.groupby('Law Class')['Law ID'].apply(list).to_dict()
 #Year --> State Dictionary
 year_state_dict = law_df.groupby('Year')['State'].apply(list).to_dict()
 year_state_dict_no_dups = {a:list(set(b)) for a, b in year_state_dict.items()}
+year_state_dict_sorted = {l: sorted(m) for l, m in year_state_dict_no_dups.items()} #sort value by list
 
-
+#Response list
+response_choices = ['Homicides','Suicides']
 
 #Clean up cluster dataset as needed
 cluster_df.drop(cluster_df[cluster_df['SuicidesB3'] == 0].index, inplace=True)
@@ -93,12 +93,6 @@ cluster_df.drop(cluster_df[cluster_df['HomicidesB3'] == 0].index, inplace=True)
 cluster_df.drop(cluster_df[cluster_df['HomicidesA3'] == 0].index, inplace=True)
 
 cluster_choices = ["Cluster 1","Cluster 2","Cluster 3","Cluster 4"]
-
-# Year --> State Dictionary
-df_for_dict = cluster_df[['Year','State']]
-df_for_dict = df_for_dict.drop_duplicates(subset='State',keep='first')
-year_state_dict = df_for_dict.groupby('Year')['State'].apply(list).to_dict()
-year_state_dict_sorted = {l: sorted(m) for l, m in year_state_dict.items()} #sort value by list
 
 # Defining a function to visualise n-grams
 def get_top_ngram(corpus, n=None):
@@ -110,8 +104,9 @@ def get_top_ngram(corpus, n=None):
     words_freq =sorted(words_freq, key = lambda x: x[1], reverse=True)
     return words_freq[:10]
 
-state_choices = law_df['State'].unique()
-
+state_choices = law_df['State'].unique().tolist()
+#state_choices = state_choices.remove('District of Columbia')
+state_choices = np.array(state_choices)
 
 #Create statistical model df
 law_df_excerpt = law_df[['Law ID', 'Law Class','Year','Effect','len_text','sentiment_score']]
@@ -151,45 +146,32 @@ full_df = full_df[full_df['Effect'].notna()]
 stat_df = full_df[['Law ID','ST','State','Year','len_text','sentiment_score', 'Income', 'Pop', 'DEM_Perc',
                    'HuntLic', 'GunsAmmo', 'avg_own_est', 'Effect','Homicides','Suicides']]
 
-
-#State --> Law ID Dictionary --> Move this after creating stat_df
-state_law_id_dict = stat_df.groupby('State')['Law ID'].apply(list).to_dict()
-
-
 #One hot encode Effect column
 one_hot1 = pd.get_dummies(stat_df['Effect'])
 stat_df = stat_df.drop('Effect',axis=1)
 stat_df = stat_df.join(one_hot1)
 
 #7.) Define function get results
-def configure_model_by_law(law_selected,response_selected):
-    choose_law = stat_df[stat_df['Law ID']==law_selected]
-    #choose_law = stat_df[stat_df['Law ID']=="AR1025"]
-
-    choose_year = choose_law['Year'].values[0]
-    choose_state = choose_law['ST'].values[0]
+def configure_model_by_law(choose_year,choose_state,choose_response):
 
 
-    stat_df['Impact'] = np.where((stat_df['Year']<=choose_year) & (stat_df['ST']==choose_state),0,1)
+    stat_df['Impact'] = np.where((stat_df['Year']<=choose_year) & (stat_df['State']==choose_state),0,1)
 
-    X = stat_df[['Year','Income','Pop','DEM_Perc','HuntLic','GunsAmmo','avg_own_est','Permissive','Restrictive','Impact']]
-    y = stat_df[[response_selected]]
+    X = stat_df[['Year','Income','Pop','DEM_Perc','HuntLic','GunsAmmo','avg_own_est','Permissive','Impact']]
+    y = stat_df[[choose_response]]
 
     X = sm.add_constant(X)
 
     #Instantiate a gamma family model with the default link function.
-    gamma_model = sm.GLM(y, X, family=sm.families.Gamma(link=sm.families.links.log()))
+    poisson_model = sm.GLM(y, X, family=sm.families.Poisson(link=sm.families.links.log()))
 
-    gamma_results = gamma_model.fit()
-    params = gamma_results.params
-    result = params[-1:].values[0]
+    poisson_results = poisson_model.fit()
+    
+    results_summary = poisson_results.summary()
+    results_as_html = results_summary.tables[1].as_html()
+    table = pd.read_html(results_as_html, header=0, index_col=0)[0]
 
-    return result
-
-#configure_model_by_law('AR1025','Suicides')
-
-
-
+    return table#,gamma_results.summary()#, params
 
 tabs_styles = {
     'height': '44px'
@@ -203,7 +185,7 @@ tab_style = {
 
 }
 
-tab_selected_style = {
+tab_selected_style = { 
     'borderTop': '1px solid #d6d6d6',
     'borderBottom': '1px solid #d6d6d6',
     'backgroundColor': '#626ffb',
@@ -405,7 +387,8 @@ app.layout = html.Div([
                                     dbc.ModalHeader("Analysis"),
                                     dbc.ModalBody(
                                         children=[
-                                            html.P('Blah blah blah'),
+                                            html.P('While it can be a difficult task to asssess the importance of any single word in a body of text without context, the charts offer an analysis aimed at identifying  [INSERT SOMETHING ABOUT FREQUENCY AND HOW ITS A START STEP IN THE RIGHT DIRECTION]'),
+                                            html.P('The left chart identifies the most frequently used words in the text of selected types of laws.  These words usually only offer a descriptive lense of what the law is referring to using mostly nouns.  The right chart offers a little more in depth analysis by evaluating the TF-IDF scores for each individual word in the selected laws, which determines their relative importance within the text.  There is some overlap between the words shown in the right and left charts, but generally, in the right side charts, we find words that offer more detail and describe actions using a mixture of nouns and verbs.')
                                         ]
                                     ),
                                     dbc.ModalFooter(
@@ -428,6 +411,10 @@ app.layout = html.Div([
                         dcc.Slider(
                             id='num_words_slider',
                             min=1,max=3,step=1,value=1,
+                            tooltip={
+                                "placement": "bottom",
+                                 "always_visible": True
+                            },
                             marks={
                                 1: '1',
                                 2: '2',
@@ -513,7 +500,10 @@ app.layout = html.Div([
                                     value=[1991, 2020],
                                     allowCross=False,
                                     pushable=2,
-                                    tooltip={"placement": "bottom", "always_visible": True}
+                                    tooltip={
+                                        "placement": "bottom", 
+                                        "always_visible": True
+                                    }
                                 )
                     ],width=6),
             
@@ -592,32 +582,45 @@ app.layout = html.Div([
                 ]),
                 dbc.Row([
                     dbc.Col([
-                        html.Br(),
+                        html.Label(dcc.Markdown('''**Choose Year:**'''),style={'color':'white'}),                        
+                        dcc.Slider(
+                            id='year_slider',
+                            min=1991,max=2017,step=1,value=2000,
+                            tooltip={
+                                "placement": "bottom", 
+                                "always_visible": True
+                            },
+                            marks={
+                                1991: '1991',
+                                1995: '1995',
+                                2000: '2000',
+                                2005: '2005',
+                                2010: '2010',
+                                2015: '2015'
+                            }
+                        )
+                    ],width=4),
+                    dbc.Col([
                         html.Label(dcc.Markdown('''**Choose State:**'''),style={'color':'white'}),                        
                         dcc.Dropdown(
                             id='dropdown6',
                             options=[{'label': i, 'value': i} for i in state_choices],
                             value=state_choices[0]
-                        ),
-                        html.Br(),
-                        html.Label(dcc.Markdown('''**Choose Law:**'''),style={'color':'white'}),                        
-                        dcc.Dropdown(
-                            id='dropdown7',
-                            options=[{'label': i, 'value': i} for i in law_list_choices_for_stat_model],
-                            value=law_list_choices_for_stat_model[0]
-                        ),
-                        html.Br(),
+                        )
+                    ],width=4),
+                    dbc.Col([
                         html.Label(dcc.Markdown('''**Choose Response:**'''),style={'color':'white'}),                        
                         dcc.Dropdown(
-                            id='dropdown8',
+                            id='dropdown7',
                             options=[{'label': i, 'value': i} for i in response_choices],
                             value=response_choices[0]
                         )
-                    ],width=3),
+                    ],width=4)
+                ]),
+                dbc.Row([
                     dbc.Col([
-                        html.Br(),
                         dbc.Card(id='card4'),
-                        dbc.Card(id='card5')  
+                        html.P(id='model_results')
                     ])
                 ])
             ]
@@ -1078,30 +1081,34 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
 
 
 
-#----------Regression----------#
+#----------------------------- Tab #5: Regression -----------------------------#
 
 @app.callback(
-    Output('dropdown7', 'options'), #--> filter law options
-    Output('dropdown7', 'value'),
-    Input('dropdown6', 'value') #--> choose state
+    Output('dropdown6', 'options'),#-----Filters the state options
+    Output('dropdown6', 'value'),
+    Input('year_slider', 'value') #----- Select the year
 )
-def set_law_option3(selected_law):
-    return [{'label': i, 'value': i} for i in state_law_id_dict[selected_law]], state_law_id_dict[selected_law][1]
+def set_state_options(selected_year):
+    return [{'label': i, 'value': i} for i in year_state_dict_sorted[selected_year]], year_state_dict_sorted[selected_year][0]
+
 
 #Configure reactivity of cards controlled by model parameters
 @app.callback(
     Output('card4', 'children'), 
-    Input('dropdown7','value'),
-    Input('dropdown8','value')
+    Output('model_results','children'),
+    Input('year_slider','value'),
+    Input('dropdown6','value'),
+    Input('dropdown7','value')
 ) 
 
-def update_model_card(dd7, dd8):
-    impact = configure_model_by_law(dd7,dd8)
+def update_model_card(selected_year, selected_state,selected_response):
+
+    impact = configure_model_by_law(selected_year, selected_state,selected_response)['coef'][-1:].values[0]
     result = round((exp(impact)-1)*100,2)
 
     card4 = dbc.Card([
         dbc.CardBody([
-            html.P('Result %'),
+            html.P(f'Poisson Model Estimated \u0394 {selected_response} in {selected_state} before vs. after {selected_year}:'),
             html.H6(f'{result}%'),
         ])
     ],
@@ -1113,7 +1120,55 @@ def update_model_card(dd7, dd8):
            'fontSize':20},
     outline=True)
 
-    return card4
+    table = configure_model_by_law(selected_year, selected_state,selected_response)
+    table = table.reset_index()
+
+    table.at[0,'index']='Intercept'
+    # table.at[1,'index']=''
+    # table.at[2,'index']=''
+    table.at[3,'index']='Population'
+    table.at[4,'index']='DEM % Vote (Latest Election)'
+    table.at[5,'index']='Estimate of Hunting Licenses'
+    table.at[6,'index']='Estimate of Subscriptions to GunsAmmo'
+    table.at[7,'index']='Averaged Estimate of Firearm Ownership'
+    table.at[8,'index']='Permissive Laws'
+    # table.at[9,'index']='Restrictive Laws'
+    table.at[9,'index']='Impact'
+
+
+
+
+    table = table.rename(
+        columns={
+            'index': 'Factor Name',
+            'coef':'Coefficient',
+            'std err':'Standard Error'
+        }
+    )
+
+    table['Coefficient'] = table['Coefficient'].round(6)
+    table['Standard Error'] = table['Standard Error'].round(6)
+    table['z'] = table['z'].round(6)
+    table['P>|z|'] = table['P>|z|'].round(6)
+    table['[0.025'] = table['[0.025'].round(6)
+    table['0.975]'] = table['0.975]'].round(6)
+
+    model_table = dt.DataTable(
+            columns=[{"name": i, "id": i} for i in table.columns],
+            data=table.to_dict('records'),
+            style_data={
+                'whiteSpace': 'normal',
+                'height': 'auto',
+                'color':'black',
+                'backgroundColor': 'white',
+                'lineHeight': '15px'
+
+            },
+
+            style_cell={'textAlign': 'left'}
+    )
+
+    return card4, model_table
 #----------Configure reactivity for Button #1 (Instructions) --> Tab #2----------#
 @app.callback(
     Output("modal1", "is_open"),
