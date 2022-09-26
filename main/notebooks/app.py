@@ -3,46 +3,30 @@ import pandas as pd
 import numpy as np
 import os
 import plotly.express as px
-import plotly.graph_objects as go
 import dash
 from dash import dcc, html
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 from plotly.subplots import make_subplots
-
-import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.impute import KNNImputer
-
-import warnings
 from kneed import KneeLocator
 from dash import dash_table as dt
-import itertools
 import statsmodels.api as sm
 from math import exp
-
 from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import LabelEncoder, MinMaxScaler
-
 from sklearn.feature_extraction.text import CountVectorizer
 count_vectorizer = CountVectorizer(stop_words='english')
-
 from sklearn.feature_extraction.text import TfidfVectorizer
 vectorizer = TfidfVectorizer()
 from sklearn.metrics.pairwise import cosine_similarity
-from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
 
-#from dash import dash_table as dt
-
-
-#Read in data for Github
+#-------------------Read in data for Github-------------------#
 law_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/law_df_updated.csv')
 cluster_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/cluster_df_updated.csv')
 
 
-#Clean up the law dataset as needed
+#--------------------Clean up the law dataset as needed--------------------#
 law_df = law_df.rename(
     columns={
         'Effective Date Year': 'Year',
@@ -50,17 +34,30 @@ law_df = law_df.rename(
     })
 law_df = law_df[law_df['Effective Date'].notnull()]
 
-
-law_type_choices = law_df['Law Class'].unique()
-law_list_choices = law_df['Law ID'].unique()
-law_list_choices_for_stat_model = law_df['Law ID'].unique()
-
-
 #Fix Mississippi and DC labels
 law_df['State'] = np.where(law_df['State']=='MIssissippi', 'Mississippi', law_df['State'])
 law_df['State'] = np.where(law_df['State']=='DIstrict of Columbia', 'District of Columbia', law_df['State'])
+law_df = law_df[law_df['State']!="District of Columbia"]
+
 #Filter to only 1991 laws and alter
 law_df = law_df[law_df['Year']>=1991]
+
+#Create lists for dropdown menus
+law_type_choices = law_df['Law Class'].unique()
+law_list_choices = law_df['Law ID'].unique()
+response_choices = ['Homicides','Suicides']
+state_choices = law_df['State'].unique().tolist()
+state_choices = np.array(state_choices)
+
+# Defining a function to visualise n-grams
+def get_top_ngram(corpus, n=None):
+    vec = CountVectorizer(ngram_range=(n, n)).fit(corpus)
+    bag_of_words = vec.transform(corpus)
+    sum_words = bag_of_words.sum(axis=0) 
+    words_freq = [(word, sum_words[0, idx]) 
+                  for word, idx in vec.vocabulary_.items()]
+    words_freq =sorted(words_freq, key = lambda x: x[1], reverse=True)
+    return words_freq[:10]
 
 
 #-----Identify laws that have been repealed-----#
@@ -74,41 +71,29 @@ i1 = law_df.set_index(keys).index
 i2 = repealed_list.set_index(keys).index
 law_df = law_df[~i1.isin(i2)]
 
-#Law Type --> Law ID Dictionary
+#-------------------- Create Dictionaries to be used in dependent dropdown menus --------------------#
+
+#1.) Law Type --> Law ID Dictionary
 law_type_id_dict = law_df.groupby('Law Class')['Law ID'].apply(list).to_dict()
 
-
-#Year --> State Dictionary
+#1.) Year --> State Dictionary
 year_state_dict = law_df.groupby('Year')['State'].apply(list).to_dict()
 year_state_dict_no_dups = {a:list(set(b)) for a, b in year_state_dict.items()}
 year_state_dict_sorted = {l: sorted(m) for l, m in year_state_dict_no_dups.items()} #sort value by list
 
-#Response list
-response_choices = ['Homicides','Suicides']
 
-#Clean up cluster dataset as needed
+#-------------------- Clean up cluster dataframe ----------#
+
+#Get rid of values with no data
 cluster_df.drop(cluster_df[cluster_df['SuicidesB3'] == 0].index, inplace=True)
 cluster_df.drop(cluster_df[cluster_df['SuicidesA3'] == 0].index, inplace=True)
 cluster_df.drop(cluster_df[cluster_df['HomicidesB3'] == 0].index, inplace=True)
 cluster_df.drop(cluster_df[cluster_df['HomicidesA3'] == 0].index, inplace=True)
 
+#Initial cluster list - probably a better way to do this
 cluster_choices = ["Cluster 1","Cluster 2","Cluster 3","Cluster 4"]
 
-# Defining a function to visualise n-grams
-def get_top_ngram(corpus, n=None):
-    vec = CountVectorizer(ngram_range=(n, n)).fit(corpus)
-    bag_of_words = vec.transform(corpus)
-    sum_words = bag_of_words.sum(axis=0) 
-    words_freq = [(word, sum_words[0, idx]) 
-                  for word, idx in vec.vocabulary_.items()]
-    words_freq =sorted(words_freq, key = lambda x: x[1], reverse=True)
-    return words_freq[:10]
-
-state_choices = law_df['State'].unique().tolist()
-#state_choices = state_choices.remove('District of Columbia')
-state_choices = np.array(state_choices)
-
-#Create statistical model df
+#-------------------Create statistical model df-------------------#
 law_df_excerpt = law_df[['Law ID', 'Law Class','Year','Effect','len_text','sentiment_score']]
 cluster_df_excerpt = cluster_df[['Suicides','Homicides','Law ID','State','ST','Income','Pop','DEM_Perc','GOP_Perc','HuntLic','GunsAmmo','avg_own_est']]
 
@@ -117,10 +102,12 @@ full_df = pd.merge(
         cluster_df_excerpt,
         how='right',
         on=['Law ID']
-    )
+)
 
 
-#1.) Break out text columns - will screw with KNN 
+#----------Need to impute missing values----------#
+
+#1.) Break out text columns 
 text = pd.DataFrame(full_df[['Law ID', 'Law Class','Effect','State','ST']])
 not_text = full_df.loc[:, ~full_df.columns.isin(['Law ID', 'Law Class','Effect','State','ST'])]
 
@@ -135,25 +122,23 @@ not_text_fixed['Effect'] = text['Effect']
 not_text_fixed['Law ID'] = text['Law ID']
 not_text_fixed['Law Class'] = text['Law Class']
 
-#4.) Display results
+#4.) Rename data
 full_df = not_text_fixed
 
-
-#5.) Get rid of missing values that are left
+#5.) This column is giving me too much trouble so goodbye to the NAs
 full_df = full_df[full_df['Effect'].notna()]
 
 #6.) Put dataset together
 stat_df = full_df[['Law ID','ST','State','Year','len_text','sentiment_score', 'Income', 'Pop', 'DEM_Perc',
                    'HuntLic', 'GunsAmmo', 'avg_own_est', 'Effect','Homicides','Suicides']]
 
-#One hot encode Effect column
+#7.) One hot encode Effect column
 one_hot1 = pd.get_dummies(stat_df['Effect'])
 stat_df = stat_df.drop('Effect',axis=1)
 stat_df = stat_df.join(one_hot1)
 
-#7.) Define function get results
+#8.) Define function to get model results
 def configure_model_by_law(choose_year,choose_state,choose_response):
-
 
     stat_df['Impact'] = np.where((stat_df['Year']<=choose_year) & (stat_df['State']==choose_state),0,1)
 
@@ -162,7 +147,7 @@ def configure_model_by_law(choose_year,choose_state,choose_response):
 
     X = sm.add_constant(X)
 
-    #Instantiate a gamma family model with the default link function.
+    #Instantiate a Poisson family model with log link function.
     poisson_model = sm.GLM(y, X, family=sm.families.Poisson(link=sm.families.links.log()))
 
     poisson_results = poisson_model.fit()
@@ -173,6 +158,9 @@ def configure_model_by_law(choose_year,choose_state,choose_response):
 
     return table#,gamma_results.summary()#, params
 
+
+
+#---- Tab settings ----#
 tabs_styles = {
     'height': '44px'
 }
@@ -230,7 +218,6 @@ app.layout = html.Div([
                        html.P(['4.) Scraped ',html.A('median income',href='https://fred.stlouisfed.org/release/tables?rid=118&eid=259194'),' data from the Federal Reserve Bank of St. Louis Economic Data website'],style={'color':'white'}),
                        html.P(['5.) Scraped ',html.A('population',href='https://fred.stlouisfed.org/release/tables?rid=118&eid=259194')," data from the Federal Reserve Bank of St. Louis Economic Data website"],style={'color':'white'}),
                        html.P(['5.) ',html.A('County-level voting histories',href='https://github.com/statzenthusiast921/US_Elections_Project/blob/main/Data/FullElectionsData.xlsx')," data that I compiled for a previous project"],style={'color':'white'}),
-
                        html.Br()
                    ]),
                    html.Div([
@@ -238,8 +225,7 @@ app.layout = html.Div([
                    ],style={'text-decoration': 'underline'}),
                    html.Div([
                        html.P("1.) Comprehensive data for every measure used was not always available for every state or every year needed in this analysis.  Therefore, I only included data that covered the range of years 1991 through 2020.",style={'color':'white'}),
-                       html.P("2.) The District of Colubmia was not included in the analysis of firearm-related homicide and suicide data due to the challenge of finding enough data covering all 30 years.",style={'color':'white'}),
-                       html.P("3.) ",style={'color':'white'})
+                       html.P("2.) The District of Colubmia was not included in this analysis due to the challenge of finding enough complementary, descriptive data covering all 30 years.",style={'color':'white'})
                    ])
                ]),
 #-------------------------------------------------------------------------------------#
@@ -344,9 +330,7 @@ app.layout = html.Div([
                                     ),
                                 ],id="modal3",size="xl",scrollable=True),
                         ],className="d-grid gap-2"),
-
                     ])
-                   
                 ]),
                 dbc.Row([
                     dbc.Col([
@@ -460,7 +444,6 @@ app.layout = html.Div([
                                         children=[
                                             html.P('Below is a scatter plot displaying the results from a cluster analysis with KPI metrics to help describe the cluster.  Each dot on the scatter plot represents a law.  Use the year range slider to filter the laws by year passed.'),
                                             html.P('To view metrics for a particular cluster or to better visualize the cluster on the graph, use the dropdown menu to select your desired cluster.  The laws that fall into this cluster will highlight green and every other law will remain grey.')
-
                                         ]
                                     ),
                                     dbc.ModalFooter(
@@ -485,7 +468,6 @@ app.layout = html.Div([
                                     ),
                             ],id="modal7",size="md",scrollable=True),
                         ],className="d-grid gap-2")
-
                     ],width=6)
                 ]),
                 dbc.Row([
@@ -506,7 +488,6 @@ app.layout = html.Div([
                                     }
                                 )
                     ],width=6),
-            
                     dbc.Col([
                         html.Label(dcc.Markdown('''**Choose a cluster:**'''),style={'color':'white'}),                        
                         dcc.Dropdown(
@@ -541,7 +522,6 @@ app.layout = html.Div([
         ),
 #-------------------------------------------------------------------------------------#
 #Tab #5 --> Regression for Suicide and Homicide
-
         dcc.Tab(label='Regression',value='tab-5',style=tab_style, selected_style=tab_selected_style,
             children=[
                 dbc.Row([
@@ -552,8 +532,11 @@ app.layout = html.Div([
                                     dbc.ModalHeader("Instructions"),
                                     dbc.ModalBody(
                                         children=[
-                                            html.P('Test'),
-
+                                            html.P('The table below presents the results from a Poisson regression model using descriptive data for 742 laws passed in the United States from 1991 to 2020.  The model estimates the relative impact of each of the factors on the suicide and homicide rates in a specified time period for a given state.  The output can be modified by the three parameters at the top of the page which all contribute to the Impact variable:'),
+                                            html.P('1-2: Year and State'),
+                                            html.P('Selecting the year and state will create an inflection point for comparison.  All laws passed before and including the selected year in the selected state will be given a value of 0 for Impact and the laws passed after the selected year in all other states will be given a value of 1 for Impact.'),
+                                            html.P('3: Response'),
+                                            html.P('The user has two options for a response variable to choose from for the Poisson regression model: either homicide or suicide rates.')
                                         ]
                                     ),
                                     dbc.ModalFooter(
@@ -577,7 +560,6 @@ app.layout = html.Div([
                                     ),
                             ],id="modal9",size="md",scrollable=True),
                         ],className="d-grid gap-2")
-
                     ],width=6)
                 ]),
                 dbc.Row([
@@ -664,7 +646,7 @@ def render_content(tab):
     Input('dropdown1','value')
 ) 
 
-def update_matrix(dd2):#,state_choice):
+def update_matrix(dd2):
     filtered = law_df[law_df['Law Class']==dd2]
     filtered = filtered[filtered['ST']!="DC"]
 
@@ -823,7 +805,6 @@ def update_tf_idf_bar_chart(dd3,dd4,dd5):
     del law1['Law ID']
     del law2['Law ID']
 
-
     #Let's create two lists with column headers and another with values
     words1 = law1.columns.values.tolist()
     words2 = law2.columns.values.tolist()
@@ -886,7 +867,6 @@ def update_tf_idf_bar_chart(dd3,dd4,dd5):
     
 #----------------------------- Tab #4: Clustering -----------------------------#
 
-
 #Configure reactivity of cluster map controlled by range slider
 @app.callback(
     Output('cluster_map', 'figure'), 
@@ -905,7 +885,7 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
     #filtered = cluster_df[(cluster_df['Year']>=1991) & (cluster_df['Year']<=2020)]
     filtered = filtered.reset_index()
     index_df = filtered[['index','Law ID']]
-    X = filtered.copy()#[fixed_names]
+    X = filtered.copy()
 
     del X['Law ID'], X['UniqueID'], X['ST'], X['Suicides'], X['Homicides'], X['HomicidesB3'], X['SuicidesB3']
 
@@ -1007,7 +987,6 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
     )
     fig.update_layout(showlegend=True)
 
- 
     fig.update_xaxes(title_text='Suicide Rate (3 Yr Avg) Post Law Passing')
     fig.update_yaxes(title_text='Homicide Rate (3 Yr Avg) Post Law Passing')
     
@@ -1078,9 +1057,6 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
 
     return fig, [{'label':i,'value':i} for i in new_cluster_list], card1, card2, card3a, card3b
     
-
-
-
 #----------------------------- Tab #5: Regression -----------------------------#
 
 @app.callback(
@@ -1090,7 +1066,6 @@ def update_cluster_map(slider_range_values,dd1):#,state_choice):
 )
 def set_state_options(selected_year):
     return [{'label': i, 'value': i} for i in year_state_dict_sorted[selected_year]], year_state_dict_sorted[selected_year][0]
-
 
 #Configure reactivity of cards controlled by model parameters
 @app.callback(
@@ -1132,26 +1107,27 @@ def update_model_card(selected_year, selected_state,selected_response):
     table.at[6,'index']='Estimate of Subscriptions to GunsAmmo'
     table.at[7,'index']='Averaged Estimate of Firearm Ownership'
     table.at[8,'index']='Permissive Laws'
-    # table.at[9,'index']='Restrictive Laws'
     table.at[9,'index']='Impact'
-
-
-
 
     table = table.rename(
         columns={
             'index': 'Factor Name',
             'coef':'Coefficient',
-            'std err':'Standard Error'
+            'std err':'Standard Error',
+            'z':'Z',
+            'P>|z|':'P-value',
+            '[0.025':'95% CI LB',
+            '0.975]':'95% CI UB'
+
         }
     )
 
-    table['Coefficient'] = table['Coefficient'].round(6)
-    table['Standard Error'] = table['Standard Error'].round(6)
-    table['z'] = table['z'].round(6)
-    table['P>|z|'] = table['P>|z|'].round(6)
-    table['[0.025'] = table['[0.025'].round(6)
-    table['0.975]'] = table['0.975]'].round(6)
+    # table['Coefficient'] = table['Coefficient'].round(6)
+    # table['Standard Error'] = table['Standard Error'].round(6)
+    # table['Z'] = table['Z'].round(6)
+    # table['P-value'] = table['P-value'].round(6)
+    # table['95% CI LB'] = table['95% CI LB'].round(6)
+    # table['95% CI UB'] = table['95% CI UB'].round(6)
 
     model_table = dt.DataTable(
             columns=[{"name": i, "id": i} for i in table.columns],
@@ -1164,11 +1140,26 @@ def update_model_card(selected_year, selected_state,selected_response):
                 'lineHeight': '15px'
 
             },
-
-            style_cell={'textAlign': 'left'}
+            style_header={
+                    'textDecoration': 'underline',
+                    'textDecorationStyle': 'dotted',
+            },
+            style_cell={'textAlign': 'left'},
+            tooltip_delay=0,
+            tooltip_duration=None,
+            tooltip_header={
+                'Factor Name': 'Name of the factor included in the model used to measure homicides and suicides in the US.',
+                'Coefficient': 'Quantitative impact of the factor.',
+                'Standard Error': 'Measures how precisely model estimates the coefficient',
+                'Z': 'Ratio of coefficient and standard error',
+                'P-value': 'Threshold percentage determining statistical significance in model',
+                '95% CI LB': '95% confidence interval lower bound on estimate',
+                '95% CI UB': '95% confidence interval upper bound on estimate'
+            }
     )
 
     return card4, model_table
+
 #----------Configure reactivity for Button #1 (Instructions) --> Tab #2----------#
 @app.callback(
     Output("modal1", "is_open"),
@@ -1181,7 +1172,6 @@ def toggle_modal1(n1, n2, is_open):
     if n1 or n2:
         return not is_open
     return is_open
-
 
 #----------Configure reactivity for Button #2 (Analysis) --> Tab #2----------#
 @app.callback(
@@ -1196,7 +1186,6 @@ def toggle_modal2(n1, n2, is_open):
         return not is_open
     return is_open
 
-
 #----------Configure reactivity for Button #3 (Law Descriptions) --> Tab #2----------#
 @app.callback(
     Output("modal3", "is_open"),
@@ -1209,7 +1198,6 @@ def toggle_modal3(n1, n2, is_open):
     if n1 or n2:
         return not is_open
     return is_open
-
 
 #----------Configure reactivity for Button #4 (Instructions) --> Tab #3----------#
 @app.callback(
