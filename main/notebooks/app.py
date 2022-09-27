@@ -25,7 +25,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 law_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/law_df_updated.csv')
 cluster_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/cluster_df_updated.csv')
 
-
 #--------------------Clean up the law dataset as needed--------------------#
 law_df = law_df.rename(
     columns={
@@ -44,8 +43,13 @@ law_df = law_df[law_df['Year']>=1991]
 
 #Create lists for dropdown menus
 law_type_choices = law_df['Law Class'].unique()
+law_type_choices = np.array(law_type_choices)
+law_type_choices = np.sort(law_type_choices)
+
 law_list_choices = law_df['Law ID'].unique()
+
 response_choices = ['Homicides','Suicides']
+
 state_choices = law_df['State'].unique().tolist()
 state_choices = np.array(state_choices)
 
@@ -355,7 +359,7 @@ app.layout = html.Div([
                                     dbc.ModalBody(
                                         children=[
                                             html.P('To update the left graph, choose a law type from the first dropdown menu.  The graph  will populate with the top 10 most commonly used words in these types of laws.  To update this graph using bigrams or trigrams, use the slider to select the # of words that conincide in the text.'),
-                                            html.P('To update the graph on the right, use the second and third dropdown menus to select two laws for which you want to compare TF-IDF scores on individual words used in the text.  These scores represent the relative importance of a word to the entire text.')
+                                            html.P('To update the graph on the right, use the second and third dropdown menus to select two laws for which you want to compare TF-IDF scores on individual words used in the text.  These scores represent the relative importance of a word to the entire text. Essentially, importance of a term is high when it occurs a lot in a given document and rarely in others.')
                                         ]
                                     ),
                                     dbc.ModalFooter(
@@ -371,8 +375,10 @@ app.layout = html.Div([
                                     dbc.ModalHeader("Analysis"),
                                     dbc.ModalBody(
                                         children=[
-                                            html.P('While it can be a difficult task to asssess the importance of any single word in a body of text without context, the charts offer an analysis aimed at identifying  [INSERT SOMETHING ABOUT FREQUENCY AND HOW ITS A START STEP IN THE RIGHT DIRECTION]'),
-                                            html.P('The left chart identifies the most frequently used words in the text of selected types of laws.  These words usually only offer a descriptive lense of what the law is referring to using mostly nouns.  The right chart offers a little more in depth analysis by evaluating the TF-IDF scores for each individual word in the selected laws, which determines their relative importance within the text.  There is some overlap between the words shown in the right and left charts, but generally, in the right side charts, we find words that offer more detail and describe actions using a mixture of nouns and verbs.')
+                                            html.P('While it can be a difficult task to asssess the importance of any single word in a body of text without context, the charts offer a step in the right direction analyzing the text of these laws and how certain words are used.'),
+                                            html.P('The left chart identifies the most frequently used words in the text of selected types of laws.  These words usually only offer a descriptive lense of what the law is referring to using mostly nouns.  The right chart evaluates the TF-IDF scores for each individual word in the selected laws within the text.'),
+                                            html.P('There is some overlap between the words shown in the right and left charts, but generally, in the right side charts, we find words that offer more detail and describe actions using a mixture of nouns and verbs. The top 10 scores rarely produce a word with a TF-IDF score above 0.6, but most of the top scores reside between 0.3 and 0.1.'),
+                                            html.P('In general, when comparing TF-IDF scores between 2 different laws, one will find words in laws passed in the same state will be very similar.')
                                         ]
                                     ),
                                     dbc.ModalFooter(
@@ -532,9 +538,9 @@ app.layout = html.Div([
                                     dbc.ModalHeader("Instructions"),
                                     dbc.ModalBody(
                                         children=[
-                                            html.P('The table below presents the results from a Poisson regression model using descriptive data for 742 laws passed in the United States from 1991 to 2020.  The model estimates the relative impact of each of the factors on the suicide and homicide rates in a specified time period for a given state.  The output can be modified by the three parameters at the top of the page which all contribute to the Impact variable:'),
+                                            html.P(['The table below presents the results from a Poisson regression model using descriptive data for 742 laws passed in the United States from 1991 to 2020.  The model estimates the relative impact of each of the factors on the suicide and homicide rates in a specified time period for a given state.  The output can be modified by the three parameters at the top of the page which all contribute to the', html.B(' Impact '), 'variable:']),
                                             html.P('1-2: Year and State'),
-                                            html.P('Selecting the year and state will create an inflection point for comparison.  All laws passed before and including the selected year in the selected state will be given a value of 0 for Impact and the laws passed after the selected year in all other states will be given a value of 1 for Impact.'),
+                                            html.P(['Selecting the year and state will create an inflection point for comparison.  All laws passed before and including the selected year in the selected state will be given a value of 0 for', html.B(' Impact '), 'and the laws passed after the selected year in all other states will be given a value of 1 for', html.B(' Impact.')]),
                                             html.P('3: Response'),
                                             html.P('The user has two options for a response variable to choose from for the Poisson regression model: either homicide or suicide rates.')
                                         ]
@@ -552,7 +558,9 @@ app.layout = html.Div([
                                     dbc.ModalHeader("Analysis"),
                                     dbc.ModalBody(
                                         children=[
-                                            html.P('Test'),
+                                            html.P(['The large number in the middle of the grey text box is calculated by taking the coefficient for', html.B(' Impact '),'and evaluating it within the exponential function, subtracting one from that number, and multiplying the result by 100 to obtain an interpretable percentage.  This process is performed to translate the model results from a log scale back to a linear scale which lends itself better to clear and concise interpretation.']),
+                                            html.P('This process can also be used for any of the other factors in the model.  However, if the p-value for a given factor is >= 0.05, then an interpretation is meaningless as the factor does not produce a statistically significant effect in the model.'),
+                                            html.P('A negative percentage means that the homicide or suicide rate has decreased from before the selected year vs. after in the selected state.  A positive percentage reflects an increase in the homicide or suicide rate given those same parameters.')
                                         ]
                                     ),
                                     dbc.ModalFooter(
@@ -1083,8 +1091,8 @@ def update_model_card(selected_year, selected_state,selected_response):
 
     card4 = dbc.Card([
         dbc.CardBody([
-            html.P(f'Poisson Model Estimated \u0394 {selected_response} in {selected_state} before vs. after {selected_year}:'),
-            html.H6(f'{result}%'),
+            html.H1(f'{result}%'),
+            html.H6(f'Poisson Model Estimated \u0394 {selected_response} factoring in all laws passed in {selected_state} before vs. after {selected_year}')
         ])
     ],
     style={'display': 'inline-block',
@@ -1135,15 +1143,19 @@ def update_model_card(selected_year, selected_state,selected_response):
             style_data={
                 'whiteSpace': 'normal',
                 'height': 'auto',
-                'color':'black',
-                'backgroundColor': 'white',
-                'lineHeight': '15px'
+                'lineHeight': '15px',
+                'backgroundColor': 'rgb(50, 50, 50)',
+                'color': 'white'
 
             },
             style_header={
-                    'textDecoration': 'underline',
-                    'textDecorationStyle': 'dotted',
+                'backgroundColor': 'rgb(30, 30, 30)',
+                'color': 'white',
+                'fontWeight': 'bold',
+                'textDecoration': 'underline',
+                'textDecorationStyle': 'dotted'
             },
+
             style_cell={'textAlign': 'left'},
             tooltip_delay=0,
             tooltip_duration=None,
