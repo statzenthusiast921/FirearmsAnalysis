@@ -26,4 +26,4 @@ The data used for this analysis included:
 
 ### Challenges
 - Finding demographic data that covered the same years as the firearm legislation proved to be a difficult task.  I included data spanning as many years as I was able to find.
-- Heroku was my preferred choice for hosting personal projects, but as November 28th, 2022, Heroku's free services will be discontuined.  Finding an easy-to-use, free, and comparable service was challenging.  I eventually settled on [fly.io](fly.io) as it was relatively easy to set up using their guides.
+- For most of my personal projects, I used Heroku as my hosting service.  However, starting on November 28th, 2022, Heroku's free services will be discontuined.  Finding an easy-to-use, free, and comparable service was challenging.  I eventually settled on [fly.io](fly.io) as it was relatively easy to set up using their guides and documentation.
