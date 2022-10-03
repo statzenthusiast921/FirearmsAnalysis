@@ -9,7 +9,8 @@ The purpose of this project is to:
 
 ### Link
 
-- COMING SOON
+- [Firearms Dashboard](https://firearm-dashboard-app.fly.dev/)
+- Using Free Tier on fly.io --> very slow, please give ~5 min to load all charts
 
 ### Data
 
