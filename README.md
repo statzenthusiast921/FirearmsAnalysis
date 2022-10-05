@@ -3,10 +3,10 @@
 ### Description
 
 The purpose of this project is to:
-- 1.) Explore the similarity in the text of the firearm laws and determine if any regional relationships exist.
-- 2.) Discover patterns in the text and determine the relative importance of certain words.
+- 1.) Explore similarities in the text of the firearms-related laws and determine if any regional relationships exist.
+- 2.) Discover patterns in the text of these laws and determine the relative importance of certain words.
 - 3.) Determine if any latent groupings of laws exist when including regional, demographic data as well as sentiment data.
-- 4.) Examine if there is a statistically significant difference in the rate of homicides or suicides in a particular state before vs. after any firearm related laws were passed.
+- 4.) Examine if there is a statistically significant difference in the rate of homicides or suicides in a particular state before vs. after any firearms-related laws were passed.
 
 ### Link
 
