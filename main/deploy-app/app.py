@@ -189,6 +189,7 @@ tab_selected_style = {
 
 app = dash.Dash(__name__,assets_folder=os.path.join(os.curdir,"assets"))
 server = app.server
+
 app.layout = html.Div([
     dcc.Tabs([
 #-------------------------------------------------------------------------------------#
@@ -205,10 +206,10 @@ app.layout = html.Div([
                    ],style={'text-decoration': 'underline'}),
                    html.Div([
                        html.P("This dashboard was created as a tool to: ",style={'color':'white'}),
-                       html.P("1.) Explore the similarity in the text of the laws and determine if any regional relationships exist",style={'color':'white'}),
+                       html.P("1.) Explore similarities in the text of the laws and determine if any regional relationships exist.",style={'color':'white'}),
                        html.P("2.) Discover patterns in the text and determine the relative importance of certain words.",style={'color':'white'}),
                        html.P("3.) Determine if any latent groupings of laws exist when including regional, demographic data as well as sentiment data.",style={'color':'white'}),
-                       html.P("4.) Examine if there is a statistically significant difference in the rate of homicides or suicides in a particular state before vs. after any firearm related laws were passed.",style={'color':'white'}),
+                       html.P("4.) Examine if there is a statistically significant difference in the rate of homicides or suicides in a particular state before vs. after any firearms-related laws were passed.",style={'color':'white'}),
                        html.Br()
                    ]),
                    html.Div([
@@ -218,7 +219,7 @@ app.layout = html.Div([
                    html.Div([
                        html.P(['1.) ',html.A('RAND State Firearm Law Database',href='https://www.rand.org/pubs/tools/TLA243-2-v2.html')],style={'color':'white'}),
                        html.P(['2.) ',html.A('RAND State-Level Estimates of Household Firearm Ownership',href='https://www.rand.org/pubs/tools/TL354.html')],style={'color':'white'}),
-                       html.P(['3.) Scraped ',html.A('firearm related deaths data by state and year',href='https://www.statefirearmlaws.org/states/')],style={'color':'white'}),
+                       html.P(['3.) Scraped ',html.A('firearms-related deaths data by state and year',href='https://www.statefirearmlaws.org/states/')],style={'color':'white'}),
                        html.P(['4.) Scraped ',html.A('median income',href='https://fred.stlouisfed.org/release/tables?rid=118&eid=259194'),' data from the Federal Reserve Bank of St. Louis Economic Data website'],style={'color':'white'}),
                        html.P(['5.) Scraped ',html.A('population',href='https://fred.stlouisfed.org/release/tables?rid=118&eid=259194')," data from the Federal Reserve Bank of St. Louis Economic Data website"],style={'color':'white'}),
                        html.P(['5.) ',html.A('County-level voting histories',href='https://github.com/statzenthusiast921/US_Elections_Project/blob/main/Data/FullElectionsData.xlsx')," data that I compiled for a previous project"],style={'color':'white'}),
@@ -538,7 +539,7 @@ app.layout = html.Div([
                                     dbc.ModalHeader("Instructions"),
                                     dbc.ModalBody(
                                         children=[
-                                            html.P(['The table below presents the results from a Poisson regression model using descriptive data for 742 laws passed in the United States from 1991 to 2020.  The model estimates the relative impact of each of the factors on the suicide and homicide rates in a specified time period for a given state.  The output can be modified by the three parameters at the top of the page which all contribute to the', html.B(' Impact '), 'variable:']),
+                                            html.P(['The table presents the results from a Poisson regression model using descriptive data for 742 laws passed in the United States from 1991 to 2020.  The model estimates the relative impact of each of the factors on the suicide and homicide rates in a specified time period for a given state.  The output can be modified by the three parameters at the top of the page which all contribute to the', html.B(' Impact '), 'variable:']),
                                             html.P('1-2: Year and State'),
                                             html.P(['Selecting the year and state will create an inflection point for comparison.  All laws passed before and including the selected year in the selected state will be given a value of 0 for', html.B(' Impact '), 'and the laws passed after the selected year in all other states will be given a value of 1 for', html.B(' Impact.')]),
                                             html.P('3: Response'),
@@ -558,7 +559,7 @@ app.layout = html.Div([
                                     dbc.ModalHeader("Analysis"),
                                     dbc.ModalBody(
                                         children=[
-                                            html.P(['The large number in the middle of the grey text box is calculated by taking the coefficient for', html.B(' Impact '),'and evaluating it within the exponential function, subtracting one from that number, and multiplying the result by 100 to obtain an interpretable percentage.  This process is performed to translate the model results from a log scale back to a linear scale which lends itself better to clear and concise interpretation.']),
+                                            html.P(['The large number in the middle of the grey text box is calculated by taking the coefficient for', html.B(' Impact '),'and evaluating it within the exponential function, subtracting one from that number, and multiplying the result by 100 to obtain an interpretable percentage.  This process is performed to translate the model results from a log scale back to a linear scale which lends itself better to clear and concise interpretation.  If the box is highlighted in blue, the result is statistically significant.']),
                                             html.P('This process can also be used for any of the other factors in the model.  However, if the p-value for a given factor is >= 0.05, then an interpretation is meaningless as the factor does not produce a statistically significant effect in the model.'),
                                             html.P('A negative percentage means that the homicide or suicide rate has decreased from before the selected year vs. after in the selected state.  A positive percentage reflects an increase in the homicide or suicide rate given those same parameters.')
                                         ]
@@ -1086,22 +1087,39 @@ def set_state_options(selected_year):
 
 def update_model_card(selected_year, selected_state,selected_response):
 
+
     impact = configure_model_by_law(selected_year, selected_state,selected_response)['coef'][-1:].values[0]
     result = round((exp(impact)-1)*100,2)
+    sig_pvalue = configure_model_by_law(selected_year, selected_state,selected_response)['P>|z|'][-1:].values[0]
 
-    card4 = dbc.Card([
-        dbc.CardBody([
-            html.H1(f'{result}%'),
-            html.H6(f'Poisson Model Estimated \u0394 {selected_response} factoring in all laws passed in {selected_state} before vs. after {selected_year}')
-        ])
-    ],
-    style={'display': 'inline-block',
-           'text-align': 'center',
-           'background-color': '#70747c',
-           'color':'white',
-           'fontWeight': 'bold',
-           'fontSize':20},
-    outline=True)
+    if sig_pvalue <0.05:
+        card4 = dbc.Card([
+            dbc.CardBody([
+                html.H1(f'{result}%'),
+                html.H6(f'Poisson Model Estimated \u0394 {selected_response} factoring in all laws passed in {selected_state} before vs. after {selected_year}')
+            ])
+        ],
+        style={'display': 'inline-block',
+            'text-align': 'center',
+            'background-color': '#6874fc',
+            'color':'white',
+            'fontWeight': 'bold',
+            'fontSize':20},
+        outline=True)
+    else:
+        card4 = dbc.Card([
+            dbc.CardBody([
+                html.H1(f'{result}%'),
+                html.H6(f'Poisson Model Estimated \u0394 {selected_response} factoring in all laws passed in {selected_state} before vs. after {selected_year}')
+            ])
+        ],
+        style={'display': 'inline-block',
+            'text-align': 'center',
+            'background-color': '#70747c',
+            'color':'white',
+            'fontWeight': 'bold',
+            'fontSize':20},
+        outline=True)
 
     table = configure_model_by_law(selected_year, selected_state,selected_response)
     table = table.reset_index()
