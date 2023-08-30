@@ -8,18 +8,18 @@ from dash import dcc, html
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 from plotly.subplots import make_subplots
-from sklearn.cluster import KMeans
-from sklearn.impute import KNNImputer
+from scikit-learn.cluster import KMeans
+from scikit-learn.impute import KNNImputer
 from kneed import KneeLocator
 from dash import dash_table as dt
 import statsmodels.api as sm
 from math import exp
-from sklearn.preprocessing import StandardScaler
-from sklearn.feature_extraction.text import CountVectorizer
+from scikit-learn.preprocessing import StandardScaler
+from scikit-learn.feature_extraction.text import CountVectorizer
 count_vectorizer = CountVectorizer(stop_words='english')
-from sklearn.feature_extraction.text import TfidfVectorizer
+from scikit-learn.feature_extraction.text import TfidfVectorizer
 vectorizer = TfidfVectorizer()
-from sklearn.metrics.pairwise import cosine_similarity
+from scikit-learn.metrics.pairwise import cosine_similarity
 
 #-------------------Read in data for Github-------------------#
 law_df = pd.read_csv('https://raw.githubusercontent.com/statzenthusiast921/FirearmsAnalysis/main/main/data/law_df_updated.csv')
