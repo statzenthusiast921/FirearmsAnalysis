@@ -8,9 +8,10 @@ The purpose of this project is to:
 - 3.) Determine if any latent groupings of laws exist when including regional, demographic data as well as sentiment data.
 - 4.) Examine if there is a statistically significant difference in the rate of homicides or suicides in a particular state before vs. after any firearms-related laws were passed.
 
-### Link
 
-If you want to see the app, reach out to the email address I have provided in my bio. I will need to scale up the instance on fly.io.
+### App
+
+Take a look at the application using the link [here](https://firearms-analysis-jz.onrender.com/).  It might take a few minutes to "wake up" if it hasn't been accessed in awhile.
 
 ### Data
 
