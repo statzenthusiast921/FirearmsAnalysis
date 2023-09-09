@@ -11,7 +11,7 @@ The purpose of this project is to:
 
 ### App
 
-Take a look at the application using the link [here](https://firearms-analysis-jz.onrender.com/).  It might take a few minutes to "wake up" if it hasn't been accessed in awhile.
+#Coming soon
 
 ### Data
 
